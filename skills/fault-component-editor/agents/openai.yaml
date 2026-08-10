@@ -1,0 +1,7 @@
+interface:
+  display_name: "故障元件编辑器"
+  short_description: "查询和编辑 CloudPSS 故障元件及 EMT 通道"
+  default_prompt: "使用 $fault-component-editor 查询或修改当前 CloudPSS 模型中的故障元件。"
+
+policy:
+  allow_implicit_invocation: false

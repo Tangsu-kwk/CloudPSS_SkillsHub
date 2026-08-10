@@ -1,0 +1,66 @@
+{
+  "skill_name": "short-circuit-analysis",
+  "skill_version": "1.0",
+  "verification_required": true,
+  "verification_method": "real_cloudpss_emt_short_circuit_and_thevenin_scr_analysis",
+  "test_model": "model/CloudPSS/IEEE3",
+  "evals": [
+    {
+      "id": 1,
+      "name": "真实EMT短路电流指标",
+      "goal": "验证能够从真实CloudPSS EMT job result读取电流或等效功率/电压通道并计算短路相关指标、戴维南等值和SCR/ESCR",
+      "workflow": [
+        "Model.fetch or Model.load",
+        "runEMT",
+        "getPlots",
+        "getPlotChannelData",
+        "analyze_short_circuit",
+        "derive_thevenin_equivalent",
+        "calculate_scr_escr"
+      ],
+      "pass_criteria": [
+        "EMT仿真成功",
+        "至少分析一个电流或等效电流通道",
+        "每个通道包含峰值、RMS、窗口RMS和短路容量字段",
+        "每个通道包含z_th_pu、z_th_ohm、scr、escr和grid_strength字段",
+        "summary包含最大电流、最大短路容量、min_scr和通道数量"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "短路分析产物导出",
+      "goal": "验证短路分析结果能够导出为JSON、CSV和Markdown报告",
+      "workflow": [
+        "write_summary_json",
+        "write_channel_csv",
+        "write_markdown_report"
+      ],
+      "pass_criteria": [
+        "导出文件存在且非空",
+        "CSV包含通道、峰值、RMS、短路容量、戴维南阻抗、SCR/ESCR和估算方法字段",
+        "Markdown报告包含Thevenin Equivalent and SCR小节",
+        "输出中不包含凭据值"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "真实CT电流通道直接短路分析",
+      "goal": "验证能够在包含真实CT电流输出的CloudPSS模板模型上使用direct_current_channel路径，而不是功率/电压等效估算路径",
+      "workflow": [
+        "Model.fetch model/CloudPSS/SubstationCase",
+        "runEMT",
+        "read #IabcⅠ线送端2CT二次:0/1/2",
+        "analyze_short_circuit_trace",
+        "derive_thevenin_equivalent",
+        "calculate_scr_escr"
+      ],
+      "pass_criteria": [
+        "EMT仿真成功",
+        "3个CT电流通道均成功读取",
+        "summary.methods只包含direct_current_channel",
+        "每个通道包含正的fault_rms_current、short_circuit_mva和SCR字段",
+        "导出JSON、CSV和Markdown报告"
+      ]
+    }
+  ]
+}
