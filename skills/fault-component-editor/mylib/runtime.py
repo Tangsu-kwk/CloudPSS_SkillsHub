@@ -90,26 +90,6 @@ def _live_cells(model: Any) -> dict[str, Any]:
     return cells if isinstance(cells, dict) else {}
 
 
-def _add_diagram_edge(model: Any, source_cell: str, source_port: str, target_cell: str, target_port: str) -> str:
-    """Add a real CloudPSS diagram-edge cell to the in-memory model."""
-    cells = _live_cells(model)
-    if not cells:
-        raise RuntimeError("CloudPSS diagram cells are unavailable; cannot create connection")
-    edge_id = "edge_" + uuid.uuid4().hex
-    edge = {
-        "id": edge_id,
-        "shape": "diagram-edge",
-        "source": {"cell": str(source_cell), "port": str(source_port)},
-        "target": {"cell": str(target_cell), "port": str(target_port)},
-    }
-    try:
-        from cloudpss.model.implements.component import Component
-        cells[edge_id] = Component(edge)
-    except Exception:
-        cells[edge_id] = edge
-    return edge_id
-
-
 def _remove_diagram_edges(model: Any, edge_ids: set[str]) -> list[str]:
     cells = _live_cells(model)
     removed: list[str] = []
@@ -120,9 +100,208 @@ def _remove_diagram_edges(model: Any, edge_ids: set[str]) -> list[str]:
     return removed
 
 
+def _add_diagram_edge(
+    model: Any,
+    *,
+    source_id: str,
+    source_port: str,
+    target_id: str,
+    target_port: str,
+    canvas: str | None,
+) -> str:
+    """Add one explicit topology edge while preserving all existing edges."""
+    try:
+        from cloudpss.model.implements.component import Component
+    except ImportError as exc:
+        raise RuntimeError("CloudPSS dependency is unavailable") from exc
+
+    cells = _live_cells(model)
+    if not isinstance(cells, dict):
+        raise RuntimeError("CloudPSS diagram cells are unavailable; cannot create diagram-edge")
+    edge_id = f"fault-edge-{uuid.uuid4().hex}"
+    edge = {
+        "id": edge_id,
+        "shape": "diagram-edge",
+        "source": {"cell": str(source_id), "port": str(source_port)},
+        "target": {"cell": str(target_id), "port": str(target_port)},
+    }
+    if canvas:
+        edge["canvas"] = str(canvas)
+    # DiagramImplement.toJSON() serializes every cell through cell.toJSON().
+    # Keep new edges in the same SDK wrapper type as fetched diagram cells.
+    cells[edge_id] = Component(edge)
+    return edge_id
+
+
 def _display_name(component_id: str, component: dict[str, Any]) -> str:
     args = component.get("args") if isinstance(component.get("args"), dict) else {}
     return str(_source(args.get("Name")) or component.get("label") or component_id)
+
+
+def _resolve_target_component(model: Any, model_json: dict[str, Any], identifier: str) -> tuple[str, Any, dict[str, Any]]:
+    """Resolve a component id or display name to one real diagram component id."""
+    identifier = str(identifier or "").strip()
+    if not identifier:
+        raise ValueError("create requires target.component_id or target.name")
+    components = _components_from_model(model) or _cells(model_json)
+    exact = components.get(identifier)
+    if exact is not None:
+        component = _component_json(exact)
+        if component.get("shape") != "diagram-edge":
+            return identifier, exact, component
+    matches: list[tuple[str, Any, dict[str, Any]]] = []
+    for component_id, raw in components.items():
+        component = _component_json(raw)
+        if component.get("shape") == "diagram-edge":
+            continue
+        args = component.get("args") if isinstance(component.get("args"), dict) else {}
+        names = {_display_name(component_id, component), str(_source(args.get("Name")) or "")}
+        if identifier in names:
+            matches.append((component_id, raw, component))
+    if not matches:
+        raise ValueError(f"Target component does not exist: {identifier!r}")
+    if len(matches) > 1:
+        ids = ", ".join(sorted(component_id for component_id, _, _ in matches))
+        raise ValueError(f"Target component name is ambiguous: {identifier!r}; matching ids: {ids}")
+    return matches[0]
+
+
+def _resolve_target_pin(model: Any, model_json: dict[str, Any], request: EditRequest) -> tuple[str, str, dict[str, Any]]:
+    identifier = str(request.target.get("component_id") or request.target.get("name") or "").strip()
+    target_port = str(request.target.get("port") or "").strip()
+    if not target_port:
+        raise ValueError("create requires target.port")
+    target_id, _, target = _resolve_target_component(model, model_json, identifier)
+    pins = target.get("pins") if isinstance(target.get("pins"), dict) else None
+    if pins is None or target_port not in {str(port) for port in pins}:
+        raise ValueError(f"Target pin does not exist or cannot be confirmed: {target_id}:{target_port}")
+    return target_id, target_port, target
+
+
+def _set_component_pin(raw: Any, port: str, value: Any) -> None:
+    pins = getattr(raw, "pins", None)
+    if isinstance(pins, dict):
+        pins[str(port)] = copy.deepcopy(value)
+    elif isinstance(raw, dict):
+        raw.setdefault("pins", {})[str(port)] = copy.deepcopy(value)
+    else:
+        raise TypeError("CloudPSS component pins are not writable")
+
+
+def _fetch_topology(model: Any) -> dict[str, Any] | None:
+    """Fetch the EMT topology exactly as CaseEditToolbox.refreshTopology does."""
+    try:
+        from cloudpss import ModelRevision, ModelTopology
+    except ImportError:
+        return None
+    configs = getattr(model, "configs", None)
+    context = getattr(model, "context", None)
+    if not isinstance(configs, dict) or not isinstance(context, dict):
+        return None
+    current_config = context.get("currentConfig")
+    if current_config not in configs:
+        return None
+    revision = ModelRevision.create(model.revision)
+    revision_hash = revision.get("hash") if isinstance(revision, dict) else revision["hash"]
+    return _json_safe(ModelTopology.fetch(revision_hash, "emtp", configs[current_config], maximumDepth=0).toJSON())
+
+
+def _edge_groups(cells: dict[str, dict[str, Any]]) -> list[list[tuple[str, str]]]:
+    """Offline equivalent of topology groups for verification and SDK fallback."""
+    adjacency: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for edge in _edges(cells).values():
+        left, right = _edge_endpoints(edge)
+        if None in left or None in right:
+            continue
+        a = (str(left[0]), str(left[1]))
+        b = (str(right[0]), str(right[1]))
+        adjacency.setdefault(a, set()).add(b)
+        adjacency.setdefault(b, set()).add(a)
+    groups: list[list[tuple[str, str]]] = []
+    unseen = set(adjacency)
+    while unseen:
+        root = unseen.pop()
+        group = {root}
+        stack = [root]
+        while stack:
+            for neighbour in adjacency.get(stack.pop(), set()):
+                if neighbour not in group:
+                    group.add(neighbour)
+                    unseen.discard(neighbour)
+                    stack.append(neighbour)
+        groups.append(sorted(group))
+    return groups
+
+
+def _pin_normalization_plan(model: Any, generated_names: dict[str, str] | None = None) -> dict[str, Any]:
+    """Plan CaseEditToolbox.deleteEdges: shared pin names replace all diagram edges."""
+    model_json = _json_safe(model.toJSON())
+    cells = _cells(model_json)
+    components = _components_from_model(model) or cells
+    topology = _fetch_topology(model)
+    node_endpoints: dict[str, list[tuple[str, str]]] = {}
+    if isinstance(topology, dict) and isinstance(topology.get("components"), dict):
+        for topo_id, component in topology["components"].items():
+            component_id = str(topo_id).lstrip("/")
+            pins = component.get("pins") if isinstance(component, dict) else None
+            if not isinstance(pins, dict):
+                continue
+            for port, node in pins.items():
+                if str(node) != "":
+                    node_endpoints.setdefault(str(node), []).append((component_id, str(port)))
+    else:
+        for index, group in enumerate(_edge_groups(cells)):
+            node_endpoints[str(index)] = group
+
+    supplied = {str(key): str(value) for key, value in (generated_names or {}).items()}
+    prefix = "AutoAddPin" + time.strftime("%Y%m%d%H%M%S", time.localtime()) + "_"
+    generated_count = 0
+    nodes: dict[str, dict[str, Any]] = {}
+    endpoint_node: dict[tuple[str, str], str] = {}
+    for node, endpoints in node_endpoints.items():
+        existing: list[str] = []
+        for component_id, port in endpoints:
+            data = _component_json(components.get(component_id))
+            value = str(_source((data.get("pins") or {}).get(port)) or "").strip()
+            if value and value not in existing:
+                existing.append(value)
+            endpoint_node[(component_id, port)] = node
+        pin_name = existing[0] if existing else supplied.get(node)
+        if not pin_name:
+            pin_name = prefix + str(generated_count)
+            generated_count += 1
+        nodes[node] = {"pin_name": pin_name, "endpoints": endpoints, "existing_names": existing}
+    return {
+        "nodes": nodes,
+        "endpoint_node": endpoint_node,
+        "edge_ids": sorted(_edges(cells)),
+        "generated_names": {node: item["pin_name"] for node, item in nodes.items() if not item["existing_names"]},
+        "source": "ModelTopology.fetch" if topology is not None else "diagram-edge fallback",
+    }
+
+
+def _apply_pin_normalization(model: Any, plan: dict[str, Any]) -> list[str]:
+    """Apply the reference deleteEdges behavior to the in-memory model."""
+    components = _components_from_model(model)
+    for item in plan["nodes"].values():
+        for component_id, port in item["endpoints"]:
+            raw = components.get(component_id)
+            if raw is None:
+                continue
+            current = str(_source((_component_json(raw).get("pins") or {}).get(port)) or "").strip()
+            if not current:
+                _set_component_pin(raw, port, item["pin_name"])
+    return _remove_diagram_edges(model, set(plan["edge_ids"]))
+
+
+def _target_pin_name(plan: dict[str, Any], target_id: str, target_port: str, target: dict[str, Any]) -> str:
+    existing = str(_source((target.get("pins") or {}).get(target_port)) or "").strip()
+    if existing:
+        return existing
+    node = plan["endpoint_node"].get((target_id, target_port))
+    if node is None:
+        raise ValueError(f"Target pin is not connected in EMT topology: {target_id}:{target_port}")
+    return str(plan["nodes"][node]["pin_name"])
 
 
 def _is_fault(component: dict[str, Any]) -> bool:
@@ -198,9 +377,8 @@ def _incident_edges(cells: dict[str, dict[str, Any]], component_id: str) -> dict
 
 
 def _channel_reference(component: dict[str, Any]) -> str | None:
-    args = component.get("args") if isinstance(component.get("args"), dict) else {}
     pins = component.get("pins") if isinstance(component.get("pins"), dict) else {}
-    return str(_source(args.get("Name")) or _source(pins.get("0")) or "").strip() or None
+    return str(_source(pins.get("0")) or "").strip() or None
 
 
 def _reference_variants(value: Any) -> set[str]:
@@ -234,6 +412,21 @@ def _fault_ground_links(model: Any, model_json: dict[str, Any], fault_id: str) -
     fault_edges = _incident_edges(cells, fault_id)
     gnds: list[dict[str, Any]] = []
     target_edges: list[dict[str, Any]] = []
+    fault = _component_json(components.get(fault_id))
+    pins = fault.get("pins") if isinstance(fault.get("pins"), dict) else {}
+    network_pin = str(_source(pins.get("0")) or "").strip()
+    ground_pin = str(_source(pins.get("1")) or "").strip()
+    for component_id, raw in components.items():
+        if component_id == fault_id:
+            continue
+        component = _component_json(raw)
+        component_pins = component.get("pins") if isinstance(component.get("pins"), dict) else {}
+        for port, value in component_pins.items():
+            pin_name = str(_source(value) or "").strip()
+            if network_pin and pin_name == network_pin and not _is_channel(component):
+                target_edges.append({"component_id": component_id, "port": str(port), "pin_name": pin_name})
+            elif ground_pin and pin_name == ground_pin and _is_gnd(component):
+                gnds.append({"component_id": component_id, "port": str(port), "pin_name": pin_name})
     uncertain: list[dict[str, Any]] = []
     for edge_id, edge in fault_edges.items():
         (source_id, source_port), (target_id, target_port) = _edge_endpoints(edge)
@@ -247,7 +440,9 @@ def _fault_ground_links(model: Any, model_json: dict[str, Any], fault_id: str) -
             target_edges.append(item)
         else:
             uncertain.append(item)
-    return {"fault_edges": fault_edges, "gnds": gnds, "targets": target_edges, "uncertain": uncertain}
+    if not network_pin or ground_pin != "GND":
+        uncertain.append({"component_id": fault_id, "pins": copy.deepcopy(pins), "reason": "fault pins do not match logical pin-name topology"})
+    return {"fault_edges": fault_edges, "gnds": gnds, "targets": target_edges, "uncertain": uncertain, "network_pin": network_pin, "ground_pin": ground_pin}
 
 
 def _output_channel_entries(model_json: dict[str, Any], component_ids: set[str] | None = None) -> list[dict[str, Any]]:
@@ -281,6 +476,18 @@ def _normalize_update(changes: dict[str, Any]) -> dict[str, Any]:
     for key in ("I", "V"):
         if key in normalized and not str(_source(normalized[key]) or "").strip():
             raise ValueError(f"{key} must be non-empty text")
+    return normalized
+
+
+def _normalized_create_changes(changes: dict[str, Any]) -> dict[str, Any]:
+    """Validate and freeze all required create parameters during preview."""
+    allowed = {"fs", "fe", "ft", "Init", "chg"}
+    normalized = _normalize_update({key: value for key, value in changes.items() if key in allowed})
+    missing = sorted(allowed - set(normalized))
+    if missing:
+        raise ValueError(f"Creating a fault requires: {', '.join(missing)}")
+    if _number(normalized["fs"]) >= _number(normalized["fe"]):
+        raise ValueError("fs must be less than fe")
     return normalized
 
 
@@ -349,6 +556,16 @@ def _state(session_state: dict[str, Any]) -> dict[str, Any]:
 def _ensure_model(session_state: dict[str, Any]) -> Any:
     model = session_state.get("memory_model")
     if model is not None:
+        # Tool/session serialization can turn the live SDK Model into its JSON
+        # dictionary between preview and confirmation turns. Rehydrate it
+        # before any runtime operation calls Model methods such as toJSON().
+        if isinstance(model, dict):
+            try:
+                from cloudpss import Model
+            except ImportError as exc:
+                raise RuntimeError("CloudPSS dependency is unavailable") from exc
+            model = Model(copy.deepcopy(model))
+            session_state["memory_model"] = model
         return model
     rid = str(session_state.get("original_rid") or "").strip()
     if not rid:
@@ -397,15 +614,14 @@ def _new_version(state: dict[str, Any], component_name: str, suffix: str) -> str
     return f"v{index:03d}_{safe_id}_{safe_suffix}"
 
 
-def _internal_channel_name(fault_id: str, kind: str) -> str:
-    safe_id = re.sub(r"[^A-Za-z0-9_]+", "_", fault_id).strip("_") or "fault"
-    return f"{safe_id}_fault_{kind}_channel"
+def _internal_channel_name(fault_label: str, kind: str) -> str:
+    return f"#{fault_label}.{'I' if kind == 'current' else 'V'}"
 
 
 def _reference_for_fault(existing: Any, internal: str) -> str:
     text = str(_source(existing) or "")
     quoted = text.strip().startswith(("'", '"'))
-    reference = f"#{internal}"
+    reference = internal
     return f"'{reference}'" if quoted else reference
 
 
@@ -479,7 +695,7 @@ def _add_output_channel(model: Any, channel_id: str, display_name: str, sample_r
             return
     # Preserve the model's existing entry schema. Unknown metadata is not
     # invented; only the confirmed output-channel fields are written.
-    configured.append({"0": display_name, "1": int(sample_rate), "2": "compressed", "3": 1, "4": [channel_id], "5": []})
+    configured.append({"0": display_name, "1": int(sample_rate), "2": "compressed", "3": 1, "4": [channel_id]})
 
 
 def _remove_output_channels(model: Any, component_ids: set[str]) -> list[dict[str, Any]]:
@@ -503,14 +719,14 @@ def _remove_output_channels(model: Any, component_ids: set[str]) -> list[dict[st
     return removed
 
 
-def _create_channel(model: Any, fault_id: str, kind: str, canvas: str | None, display_name: str, sample_rate: int) -> dict[str, Any]:
-    internal = _internal_channel_name(fault_id, kind)
-    reference = f"#{internal}"
+def _create_channel(model: Any, pin_name: str, dim: int, canvas: str | None, display_name: str, sample_rate: int) -> dict[str, Any]:
+    internal = pin_name
+    reference = pin_name
     channel = model.addComponent(
         CHANNEL_DEFINITION,
-        f"{fault_id}_{kind}_channel",
+        display_name,
         {"Dim": {"source": "3", "ɵexp": ""}, "Name": reference},
-        {"0": _new_signal_wrapper(internal)},
+        {"0": reference},
         canvas=canvas,
     )
     channel_id = _component_id(channel)
@@ -521,21 +737,13 @@ def _create_channel(model: Any, fault_id: str, kind: str, canvas: str | None, di
 
 
 def _create_fault_bundle(model: Any, request: EditRequest) -> dict[str, Any]:
-    changes = _normalize_update({key: value for key, value in request.changes.items() if key in {"fs", "fe", "ft", "Init", "chg"}})
-    required = {"fs", "fe", "ft", "Init", "chg"}
-    missing = sorted(required - set(changes))
-    if missing:
-        raise ValueError(f"Creating a fault requires: {', '.join(missing)}")
-    if _number(changes["fs"]) >= _number(changes["fe"]):
-        raise ValueError("fs must be less than fe")
-    target_id = str(request.target.get("component_id") or "").strip()
-    target_port = str(request.target.get("port") or "").strip()
+    changes = _normalized_create_changes(request.changes)
+    model_json = _json_safe(model.toJSON())
+    target_id, target_port, target_data = _resolve_target_pin(model, model_json, request)
+    existing_pin = str(_source((target_data.get("pins") or {}).get(target_port)) or "").strip()
+    target_pin_name = existing_pin or f"AutoAddPin{time.strftime('%Y%m%d%H%M%S', time.localtime())}_{uuid.uuid4().hex[:8]}"
     canvas = request.options.get("canvas")
-    if not target_id or not target_port:
-        raise ValueError("create requires target.component_id and target.port")
     if not canvas:
-        target_raw = _components_from_model(model).get(target_id)
-        target_data = _component_json(target_raw) if target_raw is not None else {}
         canvas = target_data.get("canvas")
     if not canvas:
         canvases = getattr(getattr(getattr(model, "revision", None), "implements", None), "diagram", None)
@@ -547,8 +755,7 @@ def _create_fault_bundle(model: Any, request: EditRequest) -> dict[str, Any]:
     display_name = str(request.options.get("name") or request.target.get("name") or "").strip()
     if not display_name:
         raise ValueError("create requires a fault display name")
-    # addComponent pins follow the verified CloudPSS toolbox pattern; Model
-    # creates the associated diagram edges from pin values.
+    # addComponent pins follow the verified CloudPSS component schema.
     gnd = model.addComponent(GND_DEFINITION, f"{display_name}_GND", {"Name": display_name + "_GND"}, {"0": "GND"}, canvas=canvas)
     gnd_id = _component_id(gnd)
     ft_value: Any = str(_source(changes["ft"]))
@@ -566,24 +773,45 @@ def _create_fault_bundle(model: Any, request: EditRequest) -> dict[str, Any]:
     }
     # Component pin values describe logical pin names; explicit diagram edges
     # are required by the SDK to materialize the topology.
-    fault = model.addComponent(FAULT_DEFINITION, display_name, fault_args, {"0": "", "1": ""}, canvas=canvas)
+    fault = model.addComponent(FAULT_DEFINITION, display_name, fault_args, {"0": target_pin_name, "1": "GND"}, canvas=canvas)
     fault_id = _component_id(fault)
     if not fault_id:
         raise RuntimeError("CloudPSS did not return the new fault component id")
-    fault_edges = [
-        _add_diagram_edge(model, fault_id, "0", gnd_id, "0"),
-        _add_diagram_edge(model, fault_id, "1", target_id, target_port),
-    ]
-    current = _create_channel(model, fault_id, "current", canvas, str(request.options.get("current_output_name") or "故障电流通道"), int(request.options.get("sample_rate", 2000)))
-    _set_component_args(fault, {"I": _new_signal_wrapper(current["internal"])})
+    fault_edge = _add_diagram_edge(
+        model,
+        source_id=target_id,
+        source_port=target_port,
+        target_id=fault_id,
+        target_port="0",
+        canvas=canvas,
+    )
+    ground_edge = _add_diagram_edge(
+        model,
+        source_id=fault_id,
+        source_port="1",
+        target_id=gnd_id,
+        target_port="0",
+        canvas=canvas,
+    )
+    current = _create_channel(model, f"#{display_name}.I", 3, canvas, str(request.options.get("current_output_name") or "故障电流通道"), int(request.options.get("sample_rate", 2000)))
+    _set_component_args(fault, {"I": f"#{display_name}.I"})
     voltage = None
     if request.options.get("create_voltage_channel"):
-        voltage = _create_channel(model, fault_id, "voltage", canvas, str(request.options.get("voltage_output_name") or "故障电压通道"), int(request.options.get("sample_rate", 2000)))
-        _set_component_args(fault, {"V": _new_signal_wrapper(voltage["internal"])})
-    return {"fault_id": fault_id, "gnd_id": gnd_id, "fault_edges": fault_edges, "current_channel": current, "voltage_channel": voltage}
+        voltage = _create_channel(model, f"#{display_name}.V", 3, canvas, str(request.options.get("voltage_output_name") or "故障电压通道"), int(request.options.get("sample_rate", 2000)))
+        _set_component_args(fault, {"V": f"#{display_name}.V"})
+    return {
+        "fault_id": fault_id,
+        "gnd_id": gnd_id,
+        "diagram_edges_added": [fault_edge, ground_edge],
+        "target_pin_name": target_pin_name,
+        "current_channel": current,
+        "voltage_channel": voltage,
+    }
 
 
-def inspect_model_from_context(session_state: dict[str, Any]) -> dict[str, Any]:
+def inspect_model_from_context(
+    session_state: dict[str, Any], *, include_cells: bool = True
+) -> dict[str, Any]:
     state = _state(session_state)
     model = _ensure_model(state)
     model_json = _json_safe(model.toJSON())
@@ -598,7 +826,16 @@ def inspect_model_from_context(session_state: dict[str, Any]) -> dict[str, Any]:
         fault["topology"] = _fault_ground_links(model, model_json, fault["id"])
         component_ids = {item["id"] for items in fault["channels"].values() for item in items}
         fault["output_channels"] = _output_channel_entries(model_json, component_ids)
-    return {"status": "ok", "original_rid": state.get("original_rid"), "current_version": state["current_version"], "faults": faults, "output_channels": _output_channel_entries(model_json), "cells": _cells(model_json)}
+    result = {
+        "status": "ok",
+        "original_rid": state.get("original_rid"),
+        "current_version": state["current_version"],
+        "faults": faults,
+        "output_channels": _output_channel_entries(model_json),
+    }
+    if include_cells:
+        result["cells"] = _cells(model_json)
+    return result
 
 
 def _preview_update(model: Any, model_json: dict[str, Any], request: EditRequest) -> dict[str, Any]:
@@ -640,18 +877,18 @@ def _preview_delete(model: Any, model_json: dict[str, Any], request: EditRequest
 
 
 def _preview_create(model: Any, model_json: dict[str, Any], request: EditRequest) -> dict[str, Any]:
-    target_id = str(request.target.get("component_id") or "").strip()
-    target_port = str(request.target.get("port") or "").strip()
-    if not target_id or not target_port:
-        raise ValueError("create requires target.component_id and target.port")
-    used = []
+    changes = _normalized_create_changes(request.changes)
+    target_id, target_port, target = _resolve_target_pin(model, model_json, request)
+    pin_name = str(_source((target.get("pins") or {}).get(target_port)) or "").strip() or "generated-at-execution"
+    used: list[str] = []
     for edge_id, edge in _edges(_cells(model_json)).items():
         endpoints = _edge_endpoints(edge)
         if (target_id, target_port) in endpoints:
             used.append(edge_id)
+    notes = []
     if used:
-        raise ValueError(f"Target pin is not idle: {target_id}:{target_port}; edges: {', '.join(used)}")
-    return {"definition": FAULT_DEFINITION, "name": request.options.get("name") or request.target.get("name"), "target": {"component_id": target_id, "port": target_port}, "fault_parameters": copy.deepcopy(request.changes), "creates": ["faultresistor_3p", "GND", "fault current channel", "EMT output channel"] + (["fault voltage channel", "voltage EMT output channel"] if request.options.get("create_voltage_channel") else []), "existing_faults": _faults(model, model_json)}
+        notes.append(f"目标为可共享母线/节点端口，将在 {target_id}:{target_port} 上追加故障支路；保留现有边: {', '.join(used)}")
+    return {"definition": FAULT_DEFINITION, "name": request.options.get("name") or request.target.get("name"), "target": {"component_id": target_id, "name": _display_name(target_id, target), "port": target_port, "pin_name": pin_name}, "fault_parameters": copy.deepcopy(changes), "creates": ["faultresistor_3p", "GND", "fault current channel", "EMT output channel", "2 diagram-edge"] + (["fault voltage channel", "voltage EMT output channel"] if request.options.get("create_voltage_channel") else []), "preserves": {"existing_diagram_edges": used}, "existing_faults": _faults(model, model_json), "notes": notes}
 
 
 def _make_preview(state: dict[str, Any], request: EditRequest) -> dict[str, Any]:
@@ -678,12 +915,15 @@ def _make_preview(state: dict[str, Any], request: EditRequest) -> dict[str, Any]
     # Store a plain mapping so the pending preview can be serialized by the
     # host session layer.  Older callers/tests may still provide an
     # EditRequest instance; confirmation handling below accepts both forms.
+    pending_changes = copy.deepcopy(request.changes)
+    if request.operation == "create":
+        pending_changes = _normalized_create_changes(request.changes)
     state["pending_preview"] = {
         "preview": preview,
         "request": {
             "operation": request.operation,
             "target": copy.deepcopy(request.target),
-            "changes": copy.deepcopy(request.changes),
+            "changes": pending_changes,
             "confirmation": None,
             "options": copy.deepcopy(request.options),
         },
@@ -775,7 +1015,9 @@ def edit_model_from_context(request: EditRequest | dict[str, Any], session_state
     if isinstance(request, dict):
         request = EditRequest(**request)
     if request.operation == "query":
-        return inspect_model_from_context(state)
+        return inspect_model_from_context(
+            state, include_cells=bool(request.options.get("include_cells", False))
+        )
     if request.operation == "verify_emt":
         return verify_emt_from_context(state)
     if request.confirmation in {"cancel", "取消"}:

@@ -206,6 +206,44 @@ def _fault_context(component_json: dict[str, Any]) -> dict[str, Any]:
     return {"count": len(faults), "active": faults}
 
 
+def _resolve_target_fault(
+    faults: dict[str, Any], target_fault_id: str | None = None
+) -> dict[str, Any] | None:
+    """Select one analysis target while retaining all faults in the EMT model."""
+    active = [fault for fault in faults.get("active", []) if isinstance(fault, dict)]
+    if not active:
+        return None
+    if len(active) == 1 and not target_fault_id:
+        return active[0]
+    if target_fault_id:
+        wanted = str(target_fault_id).strip()
+        matches = [
+            fault
+            for fault in active
+            if str(fault.get("id") or "") == wanted
+            or str(fault.get("name") or "") == wanted
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise ValueError(
+                f"No active fault matches analysis.target_fault_id {wanted!r}."
+            )
+        raise ValueError(
+            f"analysis.target_fault_id {wanted!r} matches more than one active fault."
+        )
+    if len(active) > 1:
+        choices = ", ".join(
+            f"{fault.get('id')} ({fault.get('name')})" for fault in active
+        )
+        raise ValueError(
+            "Multiple active faults were found. Specify analysis.target_fault_id "
+            "using one fault component ID or name; other active faults remain in the EMT "
+            f"scenario. Available faults: {choices}."
+        )
+    return active[0]
+
+
 def _diagram_cells(model_json: dict[str, Any]) -> dict[str, Any]:
     revision = model_json.get("revision", {})
     implements = revision.get("implements", {}) if isinstance(revision, dict) else {}
@@ -245,15 +283,17 @@ def _component_name(component_id: str, component: Any) -> str:
 def _fault_bus_from_topology(
     model_json: dict[str, Any],
     component_json: dict[str, Any],
-    faults: dict[str, Any],
+    faults: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Resolve the bus attached to an active fault from diagram connectivity."""
     cells = _diagram_cells(model_json)
-    fault_ids = {
-        str(fault.get("id"))
-        for fault in faults.get("active", [])
-        if fault.get("id")
-    }
+    if isinstance(faults, dict) and "active" in faults:
+        active_faults = faults.get("active", [])
+    elif isinstance(faults, dict):
+        active_faults = [faults]
+    else:
+        active_faults = []
+    fault_ids = {str(fault.get("id")) for fault in active_faults if fault.get("id")}
     if not fault_ids:
         return {"bus": None, "component_id": None, "edge_id": None}
 
@@ -292,8 +332,13 @@ def _fault_bus_from_topology(
     return {"bus": None, "component_id": None, "edge_id": None}
 
 
-def _fault_bus_name(faults: dict[str, Any]) -> str | None:
-    for fault in faults.get("active", []):
+def _fault_bus_name(faults: dict[str, Any] | None) -> str | None:
+    active_faults = (
+        faults.get("active", [])
+        if isinstance(faults, dict) and "active" in faults
+        else [faults] if isinstance(faults, dict) else []
+    )
+    for fault in active_faults:
         name = str(fault.get("name") or "")
         match = re.search(r"(?:fault|故障)[_ -]?(bus\d+|母线\d+)", name, re.IGNORECASE)
         if match:
@@ -309,10 +354,12 @@ def _resolve_base_voltage(
     model_json: dict[str, Any],
     component_json: dict[str, Any],
     faults: dict[str, Any],
+    target_fault: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     variables = _diagram_variables(model_json)
-    topology_fault = _fault_bus_from_topology(model_json, component_json, faults)
-    fault_bus = topology_fault["bus"] or _fault_bus_name(faults)
+    target_fault = target_fault or _resolve_target_fault(faults)
+    topology_fault = _fault_bus_from_topology(model_json, component_json, target_fault)
+    fault_bus = topology_fault["bus"] or _fault_bus_name(target_fault)
     candidates: list[dict[str, Any]] = []
     fault_bus_candidate: dict[str, Any] | None = None
     bus_current_channel: str | None = None
@@ -380,10 +427,12 @@ def _resolve_base_voltage(
 def _declared_current_channel_sources(
     faults: dict[str, Any],
     resolution: dict[str, Any],
+    target_fault: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Return only current channels explicitly declared by the fault or bus."""
     sources: list[dict[str, Any]] = []
-    for fault in faults.get("active", []):
+    active_faults = [target_fault] if target_fault else faults.get("active", [])
+    for fault in active_faults:
         channel = _source_text(fault.get("current_channel"))
         if channel:
             sources.append(
@@ -408,7 +457,12 @@ def _declared_current_channel_sources(
     return sources
 
 
-def inspect_model(model, *, max_component_summary: int = 200) -> dict[str, Any]:
+def inspect_model(
+    model,
+    *,
+    target_fault_id: str | None = None,
+    max_component_summary: int = 200,
+) -> dict[str, Any]:
     """Read the model JSON and diagram components into a safe analysis snapshot."""
     model_json = _json_safe(model.toJSON())
     components = model.getAllComponents()
@@ -418,8 +472,13 @@ def inspect_model(model, *, max_component_summary: int = 200) -> dict[str, Any]:
     }
     revision = model_json.get("revision", {}) if isinstance(model_json, dict) else {}
     faults = _fault_context(component_json)
-    voltage_resolution = _resolve_base_voltage(model_json, component_json, faults)
-    declared_current_sources = _declared_current_channel_sources(faults, voltage_resolution)
+    target_fault = _resolve_target_fault(faults, target_fault_id)
+    voltage_resolution = _resolve_base_voltage(
+        model_json, component_json, faults, target_fault
+    )
+    declared_current_sources = _declared_current_channel_sources(
+        faults, voltage_resolution, target_fault
+    )
     return {
         "model": {
             "name": getattr(model, "name", ""),
@@ -447,6 +506,7 @@ def inspect_model(model, *, max_component_summary: int = 200) -> dict[str, Any]:
         "voltage_resolution": voltage_resolution,
         "declared_current_sources": declared_current_sources,
         "faults": faults,
+        "target_fault": target_fault,
         "model_json": model_json,
         "components": component_json,
         "provenance": {
@@ -470,35 +530,29 @@ def _default_analysis_config(snapshot: dict[str, Any]) -> dict[str, Any]:
             "the active fault bus must expose VBase."
         )
     simulation_window = _simulation_window(snapshot)
-    fault_window = _active_fault_window(snapshot)
+    target_fault = snapshot.get("target_fault") or _resolve_target_fault(
+        snapshot.get("faults", {})
+    ) or {}
+    fault_window = _active_fault_window(snapshot, target_fault)
     if fault_window is None:
         raise ValueError(
             "No valid fault start/end time is available for the active fault; "
             "the fault component must define fs and fe."
         )
-    active_fault = next(
-        (
-            fault
-            for fault in snapshot.get("faults", {}).get("active", [])
-            if _number(fault.get("start_time_s")) is not None
-            and _number(fault.get("end_time_s")) is not None
-        ),
-        None,
+    active_fault = (
+        target_fault
+        if _number(target_fault.get("start_time_s")) is not None
+        and _number(target_fault.get("end_time_s")) is not None
+        else None
     )
     analysis: dict[str, Any] = {
         "base_voltage_kv": base_voltage,
         "base_voltage_source": resolution.get("source"),
         "fault_bus": resolution.get("fault_bus"),
+        "target_fault_id": target_fault.get("id"),
         "fault_type": active_fault.get("fault_type") if active_fault else None,
         "declared_current_sources": snapshot.get("declared_current_sources", []),
-        "fault_current_channel": next(
-            (
-                fault.get("current_channel")
-                for fault in snapshot.get("faults", {}).get("active", [])
-                if fault.get("current_channel")
-            ),
-            None,
-        ),
+        "fault_current_channel": target_fault.get("current_channel"),
         "min_samples": 128,
         "steady_fault_trim_fraction": 0.2,
     }
@@ -567,6 +621,8 @@ def _merge_analysis_config(
     merged["analysis"]["_steady_fault_window_explicit"] = (
         supplied_analysis.get("steady_fault_window") is not None
     )
+    if snapshot.get("target_fault"):
+        merged["analysis"]["target_fault_id"] = snapshot["target_fault"].get("id")
     supplied_voltage = _optional_float(
         supplied_analysis.get("base_voltage_kv", supplied_analysis.get("base_voltage"))
     )
@@ -623,8 +679,14 @@ def _simulation_window(snapshot: dict[str, Any]) -> list[float] | None:
     return None
 
 
-def _active_fault_window(snapshot: dict[str, Any]) -> list[float] | None:
-    active_faults = snapshot.get("faults", {}).get("active", [])
+def _active_fault_window(
+    snapshot: dict[str, Any], target_fault: dict[str, Any] | None = None
+) -> list[float] | None:
+    active_faults = (
+        [target_fault]
+        if target_fault
+        else snapshot.get("faults", {}).get("active", [])
+    )
     for fault in active_faults:
         start = _number(fault.get("start_time_s"))
         end = _number(fault.get("end_time_s"))
@@ -825,7 +887,13 @@ def analyze_model_from_source(
         _emit_stage(stage)
 
         stage = "model_parameters"
-        snapshot = inspect_model(model)
+        requested_analysis = config.get("analysis", {}) if isinstance(config, dict) else {}
+        target_fault_id = (
+            requested_analysis.get("target_fault_id")
+            if isinstance(requested_analysis, dict)
+            else None
+        )
+        snapshot = inspect_model(model, target_fault_id=target_fault_id)
         _emit_stage(stage)
 
         if not snapshot.get("faults", {}).get("active"):
@@ -967,14 +1035,26 @@ def _resolve_config(config: dict[str, Any] | None) -> dict[str, Any]:
                 float(analysis.get("steady_fault_trim_fraction", 0.2)),
             )
         )
+    declared_current_sources = list(analysis.get("declared_current_sources", []))
+    legacy_fault_channel = _source_text(analysis.get("fault_current_channel"))
+    if not declared_current_sources and legacy_fault_channel:
+        declared_current_sources = [
+            {
+                "kind": "fault_element",
+                "component_id": analysis.get("target_fault_id"),
+                "channel": legacy_fault_channel,
+                "source": "analysis.fault_current_channel",
+            }
+        ]
     return {
         "base_voltage_kv": _optional_float(analysis.get("base_voltage_kv", analysis.get("base_voltage"))),
         "requested_base_voltage_kv": _optional_float(analysis.get("requested_base_voltage_kv")),
         "base_voltage_conflict": analysis.get("base_voltage_conflict"),
         "base_voltage_source": analysis.get("base_voltage_source"),
         "fault_bus": analysis.get("fault_bus"),
+        "target_fault_id": analysis.get("target_fault_id"),
         "fault_type": analysis.get("fault_type"),
-        "declared_current_sources": list(analysis.get("declared_current_sources", [])),
+        "declared_current_sources": declared_current_sources,
         "fault_current_channel": analysis.get("fault_current_channel"),
         "current_scale": float(analysis.get("current_scale", 1.0)),
         "power_scale_mw": float(analysis.get("power_scale_mw", 1.0)),
@@ -1825,6 +1905,7 @@ def run_short_circuit_analysis(
             "requested_base_voltage_kv": resolved["requested_base_voltage_kv"],
             "base_voltage_conflict": resolved["base_voltage_conflict"],
             "fault_bus": resolved["fault_bus"],
+            "target_fault_id": resolved["target_fault_id"],
             "fault_type": resolved["fault_type"],
             "current_scale": resolved["current_scale"],
             "power_scale_mw": resolved["power_scale_mw"],
