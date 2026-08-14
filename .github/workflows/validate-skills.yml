@@ -1,0 +1,64 @@
+name: Skill CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skill-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate changed skills
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run validator unit tests
+        run: python -m unittest discover -s scripts -p "test_*.py"
+
+      - name: Select comparison revisions
+        id: revisions
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base_sha="$PR_BASE_SHA"
+            head_sha="$PR_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BASE_SHA" && ! "$PUSH_BASE_SHA" =~ ^0+$ ]]; then
+            base_sha="$PUSH_BASE_SHA"
+            head_sha="$CURRENT_SHA"
+          else
+            base_sha="$(git rev-parse HEAD^ 2>/dev/null || git hash-object -t tree /dev/null)"
+            head_sha="HEAD"
+          fi
+          echo "base=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "head=$head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Validate changed Skill packages
+        run: >-
+          python scripts/validate_skills.py
+          --changed-from "${{ steps.revisions.outputs.base }}"
+          --changed-to "${{ steps.revisions.outputs.head }}"
