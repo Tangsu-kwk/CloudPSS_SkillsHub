@@ -1,0 +1,15 @@
+﻿{
+  "skill_name": "ci-test-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run the temporary CI verification workflow.",
+      "expected_output": "A successful local verification result.",
+      "files": [],
+      "expectations": [
+        "The verification script returns exit code 0.",
+        "The output indicates that the CI test passed."
+      ]
+    }
+  ]
+}
