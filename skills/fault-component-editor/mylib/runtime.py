@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .component_metadata import try_resolve_current_parameter_metadata
+
 FAULT_DEFINITION = "model/CloudPSS/_newFaultResistor_3p"
 GND_DEFINITION = "model/CloudPSS/GND"
 CHANNEL_DEFINITION = "model/CloudPSS/_newChannel"
@@ -339,6 +341,27 @@ def _faults(model: Any, model_json: dict[str, Any]) -> list[dict[str, Any]]:
     return faults
 
 
+def _attach_fault_current_unit_metadata(faults: list[dict[str, Any]]) -> None:
+    """Enrich query/snapshot data without blocking editing when GraphQL is unavailable."""
+    cache: dict[str, dict[str, Any]] = {}
+    for fault in faults:
+        definition = str(fault.get("definition") or "").strip()
+        args = fault.get("args") if isinstance(fault.get("args"), dict) else {}
+        if not _source(args.get("I")):
+            fault["current_unit"] = {
+                "status": "not_applicable",
+                "definition_rid": definition,
+                "parameter_key": "I",
+                "message": "The fault has no declared args.I current channel",
+            }
+            continue
+        metadata = cache.get(definition)
+        if metadata is None:
+            metadata = try_resolve_current_parameter_metadata(definition, "I")
+            cache[definition] = metadata
+        fault["current_unit"] = copy.deepcopy(metadata)
+
+
 def _resolve_fault(model: Any, model_json: dict[str, Any], identifier: str) -> tuple[str, Any, dict[str, Any]]:
     matches = []
     for component_id, raw in (_components_from_model(model) or _cells(model_json)).items():
@@ -537,9 +560,42 @@ def _set_component_args(raw: Any, updates: dict[str, Any]) -> None:
         raise TypeError("CloudPSS component args are not writable")
 
 
-def _snapshot_payload(model: Any, source: str | None, version: str) -> dict[str, Any]:
+def _snapshot_payload(
+    model: Any,
+    source: str | None,
+    version: str,
+    cached_unit_metadata: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     model_json = _json_safe(model.toJSON()) if callable(getattr(model, "toJSON", None)) else _json_safe(model)
-    return {"source": source, "version": version, "model": model_json, "components": {key: _component_json(value) for key, value in _components_from_model(model).items()}}
+    faults = _faults(model, model_json)
+    cached_by_definition = {
+        str(item.get("definition") or ""): copy.deepcopy(item.get("current_unit"))
+        for item in (cached_unit_metadata or [])
+        if isinstance(item, dict) and item.get("definition")
+    }
+    for fault in faults:
+        definition = str(fault.get("definition") or "")
+        fault["current_unit"] = cached_by_definition.get(definition) or {
+            "status": "not_queried",
+            "definition_rid": definition,
+            "parameter_key": "I",
+            "message": "Run the query operation to refresh current-unit metadata",
+        }
+    return {
+        "source": source,
+        "version": version,
+        "model": model_json,
+        "components": {key: _component_json(value) for key, value in _components_from_model(model).items()},
+        "fault_unit_metadata": [
+            {
+                "id": fault.get("id"),
+                "definition": fault.get("definition"),
+                "current_channel": _source((fault.get("args") or {}).get("I")),
+                "current_unit": fault.get("current_unit"),
+            }
+            for fault in faults
+        ],
+    }
 
 
 def _state(session_state: dict[str, Any]) -> dict[str, Any]:
@@ -550,6 +606,7 @@ def _state(session_state: dict[str, Any]) -> dict[str, Any]:
     session_state.setdefault("version_snapshots", {})
     session_state.setdefault("version_models", {})
     session_state.setdefault("pending_preview", None)
+    session_state.setdefault("fault_unit_metadata", [])
     return session_state
 
 
@@ -582,7 +639,12 @@ def _ensure_model(session_state: dict[str, Any]) -> Any:
 def _write_snapshot(state: dict[str, Any], model: Any, version: str, kind: str = "model_parameters") -> str:
     root = Path(state.get("snapshot_dir") or Path.cwd() / "results" / "fault_component_editor")
     root.mkdir(parents=True, exist_ok=True)
-    payload = _snapshot_payload(model, state.get("original_rid"), version)
+    payload = _snapshot_payload(
+        model,
+        state.get("original_rid"),
+        version,
+        state.get("fault_unit_metadata"),
+    )
     path = root / f"{kind}_{version}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     state["version_snapshots"][version] = str(path.resolve())
@@ -817,9 +879,19 @@ def inspect_model_from_context(
     model_json = _json_safe(model.toJSON())
     if not isinstance(model_json, dict):
         raise TypeError("CloudPSS model JSON must be an object")
+    faults = _faults(model, model_json)
+    _attach_fault_current_unit_metadata(faults)
+    state["fault_unit_metadata"] = [
+        {
+            "id": fault.get("id"),
+            "definition": fault.get("definition"),
+            "current_channel": _source((fault.get("args") or {}).get("I")),
+            "current_unit": copy.deepcopy(fault.get("current_unit")),
+        }
+        for fault in faults
+    ]
     if "v000_original" not in state["version_snapshots"]:
         _write_snapshot(state, model, "v000_original")
-    faults = _faults(model, model_json)
     for fault in faults:
         _, _, component = _resolve_fault(model, model_json, fault["id"])
         fault["channels"] = _fault_channel_links(model, model_json, component)

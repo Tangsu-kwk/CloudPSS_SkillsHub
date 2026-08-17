@@ -1,0 +1,38 @@
+{
+  "skill_name": "fault-component-editor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "查询指定 CloudPSS 模型中的活动故障元件及其故障电流通道单位。",
+      "expected_output": "返回结构化故障列表、参数、通道和可追溯的电流单位元数据；单位查询失败时安全降级且不阻止普通查询。",
+      "files": [],
+      "expectations": [
+        "查询不会修改或覆盖原始云端模型。",
+        "存在 args.I 时返回 definition RID、参数键、原始单位、单位来源和到 kA 的换算系数。",
+        "GraphQL 单位查询失败时标记 unavailable，不猜测单位。"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "预览并确认修改故障元件的 fs、fe、ft、Init 或 chg 参数。",
+      "expected_output": "先返回变更预览，确认后只修改当前会话内存模型并保留版本状态。",
+      "files": [],
+      "expectations": [
+        "未确认前不修改模型。",
+        "普通故障参数编辑不因单位元数据查询失败而中断。",
+        "未明确保存时不覆盖或保存原始模型 RID。"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "为故障元件配置电流通道、连接关系并按需验证 EMT。",
+      "expected_output": "返回结构化配置结果；仅在用户明确要求时运行 EMT，失败时回滚到最近成功版本。",
+      "files": [],
+      "expectations": [
+        "故障元件独占关联信号组件。",
+        "EMT 验证失败时保留错误信息并执行版本回滚。",
+        "输出不包含 Token、Cookie 或其他凭据。"
+      ]
+    }
+  ]
+}

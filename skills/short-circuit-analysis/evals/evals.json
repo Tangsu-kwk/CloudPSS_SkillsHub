@@ -7,59 +7,57 @@
   "evals": [
     {
       "id": 1,
-      "name": "真实EMT短路电流指标",
-      "goal": "验证能够从真实CloudPSS EMT job result读取电流或等效功率/电压通道并计算短路相关指标、戴维南等值和SCR/ESCR",
-      "workflow": [
-        "Model.fetch or Model.load",
-        "runEMT",
-        "getPlots",
-        "getPlotChannelData",
-        "analyze_short_circuit",
-        "derive_thevenin_equivalent",
-        "calculate_scr_escr"
-      ],
-      "pass_criteria": [
-        "EMT仿真成功",
-        "至少分析一个电流或等效电流通道",
-        "每个通道包含峰值、RMS、窗口RMS和短路容量字段",
-        "每个通道包含z_th_pu、z_th_ohm、scr、escr和grid_strength字段",
-        "summary包含最大电流、最大短路容量、min_scr和通道数量"
+      "prompt": "对一个包含活动故障和真实电流通道的 CloudPSS EMT 模型执行短路电流分析。",
+      "expected_output": "返回真实 CloudPSS task_id，并在内部产物中给出 kA 电流指标、短路容量和可选 Thevenin/SCR 结果。",
+      "files": [],
+      "expectations": [
+        "EMT 仿真成功并至少分析一个真实或等效电流通道。",
+        "真实电流通道具有可追溯单位证据且在计算前统一换算为 kA。",
+        "通道结果包含峰值、故障 RMS、稳态故障 RMS 和短路容量字段。"
       ]
     },
     {
       "id": 2,
-      "name": "短路分析产物导出",
-      "goal": "验证短路分析结果能够导出为JSON、CSV和Markdown报告",
-      "workflow": [
-        "write_summary_json",
-        "write_channel_csv",
-        "write_markdown_report"
-      ],
-      "pass_criteria": [
-        "导出文件存在且非空",
-        "CSV包含通道、峰值、RMS、短路容量、戴维南阻抗、SCR/ESCR和估算方法字段",
-        "Markdown报告包含Thevenin Equivalent and SCR小节",
-        "输出中不包含凭据值"
+      "prompt": "执行短路分析并检查完整分析产物是否生成。",
+      "expected_output": "生成 task.json、model_parameters.json、analysis_result.json、Markdown、汇总 CSV、波形文件、原始波形索引和完整分析代码。",
+      "files": [],
+      "expectations": [
+        "task.json 索引的全部正式产物存在且非空。",
+        "summary.csv 包含单位依据、电流指标、短路容量、Thevenin 和 SCR/ESCR 字段。",
+        "完整逐点波形不进入 Markdown 或轻量波形摘要。"
       ]
     },
     {
       "id": 3,
-      "name": "真实CT电流通道直接短路分析",
-      "goal": "验证能够在包含真实CT电流输出的CloudPSS模板模型上使用direct_current_channel路径，而不是功率/电压等效估算路径",
-      "workflow": [
-        "Model.fetch model/CloudPSS/SubstationCase",
-        "runEMT",
-        "read #IabcⅠ线送端2CT二次:0/1/2",
-        "analyze_short_circuit_trace",
-        "derive_thevenin_equivalent",
-        "calculate_scr_escr"
-      ],
-      "pass_criteria": [
-        "EMT仿真成功",
-        "3个CT电流通道均成功读取",
-        "summary.methods只包含direct_current_channel",
-        "每个通道包含正的fault_rms_current、short_circuit_mva和SCR字段",
-        "导出JSON、CSV和Markdown报告"
+      "prompt": "在包含三相真实 CT 电流输出的模板模型上执行直接电流通道分析。",
+      "expected_output": "三相通道使用 direct_current_channel 方法，并生成正的故障电流和短路容量指标。",
+      "files": [],
+      "expectations": [
+        "三个 CT 电流通道均成功读取。",
+        "summary.methods 只包含 direct_current_channel。",
+        "每个通道包含正的 fault_rms_current 和 short_circuit_mva。"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "验证元件参数 I 的 GraphQL 单位解析及未知单位失败门禁。",
+      "expected_output": "正确区分 A、kA、MA、mA 并换算为 kA；未知、冲突或不可访问的单位在 model_parameters 阶段停止分析。",
+      "files": [],
+      "expectations": [
+        "unit=kA 时换算系数为 1，unit=A 时为 0.001。",
+        "parameter.unit 为空且 name 包含 [kA] 时记录 parameter.name 为单位来源。",
+        "功率电压等效电流路径不重复应用元件单位换算。"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "对包含多个活动故障的模型启动短路分析。",
+      "expected_output": "预检查列出故障候选项且不启动 EMT；目标故障确定后才运行正式分析。",
+      "files": [],
+      "expectations": [
+        "预检查结果包含故障名称和组件 ID，且 emt_started 为 false。",
+        "用户尚未选择时不默认使用最新或第一个故障。",
+        "选择目标故障不会自动禁用其他活动故障，并提示其可能影响结果。"
       ]
     }
   ]

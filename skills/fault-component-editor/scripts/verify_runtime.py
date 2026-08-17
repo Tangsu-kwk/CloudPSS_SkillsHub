@@ -10,6 +10,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT))
 
 from mylib import EditRequest, edit_model_from_context, inspect_model_from_context  # noqa: E402
+from mylib import runtime  # noqa: E402
 
 
 class FakeComponent:
@@ -91,9 +92,22 @@ class FakeModel:
         return component
 
 
+runtime.try_resolve_current_parameter_metadata = lambda definition, parameter_key="I": {
+    "status": "resolved",
+    "definition_rid": definition,
+    "parameter_key": parameter_key,
+    "raw_unit": "kA",
+    "normalized_unit": "kA",
+    "unit_source": "parameter.name",
+    "unit_scale_to_ka": 1.0,
+}
+
+
 with tempfile.TemporaryDirectory() as snapshot_dir:
     state = {"original_rid": "model/example/fake", "memory_model": FakeModel(), "snapshot_dir": snapshot_dir}
-    assert inspect_model_from_context(state)["faults"]
+    queried_faults = inspect_model_from_context(state)["faults"]
+    assert queried_faults
+    assert queried_faults[0]["current_unit"]["raw_unit"] == "kA"
     compact_query = edit_model_from_context(EditRequest("query"), state)
     assert compact_query["faults"]
     assert "cells" not in compact_query

@@ -1,7 +1,22 @@
 ---
 name: fault-component-editor
 description: 当用户明确要求对 CloudPSS 模型中的故障元件进行查询、新增、修改或删除，查询或修改故障发生时间（fs）、故障结束时间（fe）、故障类型（ft）、初始电阻（Init）、故障期间电阻（chg）、故障电流通道（I）或故障电压通道（V），配置故障电流/电压信号组件、EMT 输出通道、接地支路或故障连接关系，创建故障场景，验证修改后的当前内存模型能否完成真实 EMT 仿真，或保存修改后的模型副本时使用。该 Skill 默认操作当前会话中 Model.fetch/load 得到的内存模型，不自动保存或覆盖原始云端模型；只有用户明确要求时才保存为新的 CloudPSS 模型 RID。用户仅要求短路电流分析、短路容量计算、Thevenin、SCR/ESCR 分析或生成 HTML 仿真报告时不要使用。
-
+license: Internal Use Only
+compatibility:
+  python: ">=3.11"
+  requires_env: true
+  required_env_vars:
+    - SIMSTUDIO_TOKEN
+  notes: SimBot provides CloudPSS credentials; CLOUDPSS_TOKEN and CLOUDPSS_LOGIN_TOKEN are supported aliases.
+metadata:
+  owner: cloudpss-team
+  category: workflow
+  visibility: internal
+  maturity: validated
+  entrypoint: scripts/verify_runtime.py
+  dependency_strategy: bundled-mylib
+  shared_packages: []
+  verification_method: offline_runtime_contract_with_optional_real_cloudpss_emt
 ---
 
 # Fault Component Editor
@@ -19,14 +34,15 @@ mylib.edit_model_from_context(request, session_state)
 1. 读取当前会话中的原始 RID、内存模型版本和已保存副本 RID；
 2. 在需要时加载原始模型；
 3. 查询故障元件、信号组件、接地支路、拓扑连接和 EMT 输出通道；
-4. 将用户请求转换为结构化编辑请求；
-5. 生成增删改预览；
-6. 等待用户确认后修改内存模型；
-7. 创建或清理关联通道、连接和接地支路；
-8. 写出版本化模型快照；
-9. 在用户明确要求时验证 EMT；
-10. EMT 失败时回滚到最近一次成功版本；
-11. 在用户明确要求时保存为新的 CloudPSS 模型 RID。
+4. 查询操作中按故障元件完整 `definition RID` 获取 `I` 参数的电流单位证据；
+5. 将用户请求转换为结构化编辑请求；
+6. 生成增删改预览；
+7. 等待用户确认后修改内存模型；
+8. 创建或清理关联通道、连接和接地支路；
+9. 写出版本化模型快照；
+10. 在用户明确要求时验证 EMT；
+11. EMT 失败时回滚到最近一次成功版本；
+12. 在用户明确要求时保存为新的 CloudPSS 模型 RID。
 
 Agent 不得自行拆分上述步骤，也不得直接调用 CloudPSS SDK 替代正式入口。
 
@@ -182,6 +198,7 @@ EMT 输出名称：故障电压通道
 
 1. 读取当前会话上下文和原始 RID。
 2. 查询操作直接读取当前内存模型；没有内存模型时加载原始 RID。
+   查询结果应为存在 `args.I` 的故障元件补充 `definition RID`、参数键、原始单位、单位来源和到 `kA` 的换算系数。单位元数据查询失败时返回 `unavailable` 状态，不阻止查询模型结构，也不阻止后续普通参数编辑。
 3. 对新增、修改、删除和通道配置请求，先解析用户意图。
    如果同一请求包含多个编辑操作，按照用户明确给出的先后顺序执行，不得将“先删除、再新增”改写为“移动”或“替换”。
 4. 生成变更预览，不立即修改模型。
@@ -245,6 +262,7 @@ EMT 输出名称：故障电压通道
 根据操作类型返回结构化结果：
 
 - `query`：返回当前模型版本、活动故障元件、故障参数、目标引脚、接地关系、关联信号组件和 EMT 输出通道。
+- `query` 中存在故障电流通道时，还返回该故障元件 `I` 参数的单位证据；查询失败必须明确标记，不得猜测单位。
 - `update`、`create`、`delete`、`configure_channel`：返回变更预览、用户确认状态、实际变更字段、版本化快照标识和当前内存版本。
 - `verify_emt`：返回 EMT 验证成功或失败、对应版本、真实仿真任务信息（如 SDK 提供）以及失败时的错误信息和回滚版本；不返回短路分析指标。
 - `save_copy`：返回新保存的 CloudPSS 模型 RID，并保留原始 RID、当前内存版本和新副本 RID 的对应关系。
@@ -283,6 +301,7 @@ Skill 内部应维护当前会话的版本化模型状态和审计信息，但�
 - 关联信号组件的内部名称、`Input`、`Channel Name`；
 - EMT `output_channels` 的原始结构；
 - 本次变更、前一版本、验证结果和回滚目标。
+- 已查询到的故障电流单位元数据，或安全的 `unavailable` 状态和原因；不得保存 Token。
 
 内部结果用于验证、回滚和后续迭代，不得被 Agent 当作短路分析结果、报告内容、模型 RID 或 EMT `task_id` 的替代品。
 
@@ -294,6 +313,7 @@ Skill 内部应维护当前会话的版本化模型状态和审计信息，但�
 - 默认只修改当前会话中的内存模型，不自动保存、覆盖或替换原始云端 RID。
 - 保存只能创建新的 CloudPSS 模型副本，禁止覆盖原始 RID；保存后的新 RID 必须由 SDK 返回并原样保留。
 - 用户只修改 `fs`、`fe`、`ft`、`Init`、`chg`、`I`、`V` 时，不强制检查其他通道或故障时序；配置通道时，也不强制检查故障时序和故障类型。
+- 单位元数据只用于查询、审计和后续分析准备；GraphQL 单位查询失败不得阻止 `fs`、`fe`、`ft`、`Init`、`chg` 等普通编辑操作。
 - 默认只自动创建故障电流信号组件；故障电压信号组件必须由用户明确要求创建或配置。
 - 每个故障元件独占自己的电流/电压信号组件；内部名称须包含故障标识。`args.Name` 含中文或特殊字符时，内部名称使用组件 ID，展示名称保留 `args.Name`。
 - 新增故障使用当前 Skill 支持的组件类型；当前版本已验证的类型为 `faultresistor_3p`。目标连接合法性按目标对象类型和当前拓扑判断，不得仅因母线已有正常支路连接就拒绝新增。

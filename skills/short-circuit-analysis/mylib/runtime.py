@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import copy
+import hashlib
 import json
 import math
 import os
@@ -11,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from cloudpss import Model, setToken
+
+from .component_metadata import resolve_current_parameter_metadata
 
 
 DEFAULT_MODEL_RID = "model/CloudPSS/IEEE3"
@@ -244,6 +248,47 @@ def _resolve_target_fault(
     return active[0]
 
 
+def inspect_fault_candidates_from_source(
+    source: str,
+    *,
+    fetch_timeout: float = DEFAULT_MODEL_FETCH_TIMEOUT,
+) -> dict[str, Any]:
+    """List active fault targets without starting EMT or resolving waveform metadata."""
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("A CloudPSS model RID or local model path is required")
+    _configure_cloudpss_auth()
+    model = load_model_from_source(source, fetch_timeout=fetch_timeout)
+    components = model.getAllComponents()
+    component_json = {
+        str(component_id): _json_safe(component.toJSON())
+        for component_id, component in components.items()
+    }
+    active_faults = [
+        {
+            "id": fault.get("id"),
+            "name": fault.get("name"),
+            "definition": fault.get("definition"),
+            "start_time_s": fault.get("start_time_s"),
+            "end_time_s": fault.get("end_time_s"),
+            "fault_type": fault.get("fault_type"),
+        }
+        for fault in _fault_context(component_json).get("active", [])
+        if isinstance(fault, dict)
+    ]
+    selected = active_faults[0] if len(active_faults) == 1 else None
+    return {
+        "model": {
+            "name": getattr(model, "name", ""),
+            "rid": getattr(model, "rid", "") or source,
+        },
+        "fault_count": len(active_faults),
+        "faults": active_faults,
+        "selection_required": len(active_faults) > 1,
+        "target_fault_id": selected.get("id") if selected else None,
+        "emt_started": False,
+    }
+
+
 def _diagram_cells(model_json: dict[str, Any]) -> dict[str, Any]:
     revision = model_json.get("revision", {})
     implements = revision.get("implements", {}) if isinstance(revision, dict) else {}
@@ -381,6 +426,11 @@ def _resolve_base_voltage(
             and isinstance(fault_bus_component.get("args"), dict)
             else {}
         )
+        bus_definition = (
+            str(fault_bus_component.get("definition") or "")
+            if isinstance(fault_bus_component, dict)
+            else ""
+        )
         bus_current_channel = _source_text(component_args.get("I"))
         component_value = _source_number(component_args.get("VBase"))
         if component_value is not None and component_value > 0:
@@ -419,6 +469,7 @@ def _resolve_base_voltage(
         "fault_bus_component_id": topology_fault["component_id"],
         "fault_bus_edge_id": topology_fault["edge_id"],
         "bus_current_channel": bus_current_channel,
+        "bus_definition": bus_definition if fault_bus else None,
         "ambiguous": bool(candidates) and chosen is None,
         "candidates": candidates,
     }
@@ -439,6 +490,8 @@ def _declared_current_channel_sources(
                 {
                     "kind": "fault_element",
                     "component_id": fault.get("id"),
+                    "definition": fault.get("definition"),
+                    "parameter_key": "I",
                     "channel": channel,
                     "source": f"components.{fault.get('id')}.args.I",
                 }
@@ -450,11 +503,53 @@ def _declared_current_channel_sources(
             {
                 "kind": "fault_bus",
                 "component_id": bus_component_id,
+                "definition": resolution.get("bus_definition"),
+                "parameter_key": "I",
                 "channel": bus_channel,
                 "source": f"components.{bus_component_id}.args.I",
             }
         )
     return sources
+
+
+def _resolve_declared_current_units(
+    sources: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Attach unit evidence to usable current sources before EMT starts."""
+    cache: dict[tuple[str, str], dict[str, Any]] = {}
+    resolved: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    for source in sources:
+        definition = str(source.get("definition") or "").strip()
+        parameter_key = str(source.get("parameter_key") or "I").strip()
+        if not definition:
+            failures.append(
+                {
+                    "component_id": source.get("component_id"),
+                    "channel": source.get("channel"),
+                    "error": "The current source has no component definition RID",
+                }
+            )
+            continue
+        cache_key = (definition, parameter_key)
+        try:
+            metadata = cache.get(cache_key)
+            if metadata is None:
+                metadata = resolve_current_parameter_metadata(definition, parameter_key)
+                cache[cache_key] = metadata
+            resolved.append({**source, "current_unit": dict(metadata)})
+        except Exception as exc:
+            failures.append(
+                {
+                    "component_id": source.get("component_id"),
+                    "definition": definition,
+                    "parameter_key": parameter_key,
+                    "channel": source.get("channel"),
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                }
+            )
+    return resolved, failures
 
 
 def inspect_model(
@@ -478,6 +573,9 @@ def inspect_model(
     )
     declared_current_sources = _declared_current_channel_sources(
         faults, voltage_resolution, target_fault
+    )
+    resolved_current_sources, current_unit_failures = _resolve_declared_current_units(
+        declared_current_sources
     )
     return {
         "model": {
@@ -504,7 +602,9 @@ def inspect_model(
         ],
         "voltage_candidates": voltage_resolution["candidates"],
         "voltage_resolution": voltage_resolution,
-        "declared_current_sources": declared_current_sources,
+        "declared_current_sources": resolved_current_sources,
+        "declared_current_source_candidates": declared_current_sources,
+        "current_unit_resolution_failures": current_unit_failures,
         "faults": faults,
         "target_fault": target_fault,
         "model_json": model_json,
@@ -553,6 +653,7 @@ def _default_analysis_config(snapshot: dict[str, Any]) -> dict[str, Any]:
         "fault_type": active_fault.get("fault_type") if active_fault else None,
         "declared_current_sources": snapshot.get("declared_current_sources", []),
         "fault_current_channel": target_fault.get("current_channel"),
+        "calibration_scale": 1.0,
         "min_samples": 128,
         "steady_fault_trim_fraction": 0.2,
     }
@@ -595,6 +696,12 @@ def _merge_analysis_config(
         for value in (supplied_analysis, supplied_channels, supplied_thevenin)
     ):
         raise ValueError("analysis, channels, and thevenin options must be objects")
+    if "current_scale" in supplied_analysis:
+        raise ValueError(
+            "analysis.current_scale is no longer accepted; current-unit conversion is resolved "
+            "from CloudPSS component metadata. Use analysis.calibration_scale only for an "
+            "explicit additional calibration."
+        )
     if supplied_channels.get("current"):
         raise ValueError(
             "channels.current is not accepted as a substitute for model-declared "
@@ -658,10 +765,15 @@ def _validate_analysis_channel_prerequisites(
     if declared_sources or equivalent_pairs:
         return
     fault_bus = snapshot.get("voltage_resolution", {}).get("fault_bus")
+    failures = snapshot.get("current_unit_resolution_failures", [])
+    failure_text = "; ".join(
+        str(item.get("error") or "unit metadata unavailable")
+        for item in failures
+        if isinstance(item, dict)
+    )
     raise RuntimeError(
-        "The active fault element and fault bus have no declared current channel. "
-        f"Fault bus {fault_bus!r}: configure the CloudPSS fault-element or fault-bus "
-        "current channel, then decide whether to retry the analysis."
+        "No model-declared current channel has verified unit metadata. "
+        f"Fault bus {fault_bus!r}. {failure_text or 'Configure a fault or fault-bus current channel.'}"
     )
 
 
@@ -738,7 +850,7 @@ def _analysis_waveform_traces(result, result_data: dict[str, Any]) -> list[dict[
                     "trace": {
                         "x": list(trace["x"]),
                         "y": [
-                            value * analysis_config["current_scale"]
+                            value * row["unit"]["effective_current_scale"]
                             for value in trace["y"]
                         ],
                     },
@@ -811,6 +923,9 @@ def _write_waveform_csv(path: Path, traces: list[dict[str, Any]]) -> dict[str, A
         "sample_count": len(time_values),
         "time_start_s": time_values[0],
         "time_end_s": time_values[-1],
+        "time_unit": "s",
+        "value_unit": "kA",
+        "normalized": True,
     }
 
 
@@ -818,6 +933,7 @@ def _write_raw_channel_csvs(
     output_dir: Path,
     directory_name: str,
     traces: list[dict[str, Any]],
+    known_units: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Write one unscaled CSV for every channel in the CloudPSS EMT result."""
     raw_dir = output_dir / directory_name
@@ -856,13 +972,230 @@ def _write_raw_channel_csvs(
                 "plot": str(item["plot"]),
                 "sample_count": len(time_values),
                 "csv_path": f"{directory_name}/{filename}",
+                "unit": copy.deepcopy((known_units or {}).get(channel_name)),
             }
         )
-    return {
+    metadata = {
         "directory": directory_name,
         "channel_count": len(channel_files),
+        "normalized": False,
         "channels": channel_files,
     }
+    _write_json(raw_dir / "index.json", metadata)
+    metadata["index"] = f"{directory_name}/index.json"
+    return metadata
+
+
+def _write_summary_csv(path: Path, result_data: dict[str, Any]) -> dict[str, Any]:
+    """Write one compact metrics row per analyzed current channel."""
+    headers = [
+        "channel",
+        "method",
+        "component_id",
+        "definition_rid",
+        "raw_current_unit",
+        "unit_source",
+        "unit_scale_to_ka",
+        "calibration_scale",
+        "effective_current_scale",
+        "peak_current_ka",
+        "fault_rms_current_ka",
+        "steady_fault_rms_current_ka",
+        "postfault_rms_current_ka",
+        "short_circuit_capacity_mva",
+        "steady_fault_short_circuit_capacity_mva",
+        "z_th_ohm",
+        "z_th_pu",
+        "scr",
+        "escr",
+        "grid_strength",
+    ]
+    rows: list[list[Any]] = []
+    for channel in result_data.get("channels", []):
+        analysis = channel.get("analysis", {})
+        unit = channel.get("unit", {})
+        source = channel.get("source", {})
+        thevenin = analysis.get("thevenin", {})
+        rows.append(
+            [
+                channel.get("channel"),
+                analysis.get("method"),
+                source.get("component_id"),
+                unit.get("definition_rid") or source.get("definition"),
+                unit.get("raw_unit"),
+                unit.get("unit_source"),
+                unit.get("unit_scale_to_ka"),
+                unit.get("calibration_scale"),
+                unit.get("effective_current_scale"),
+                analysis.get("peak_current"),
+                analysis.get("fault_rms_current"),
+                analysis.get("steady_fault_rms_current"),
+                analysis.get("postfault_rms_current"),
+                analysis.get("short_circuit_mva"),
+                analysis.get("steady_fault_short_circuit_mva"),
+                (thevenin.get("z_th_ohm") or {}).get("magnitude"),
+                (thevenin.get("z_th_pu") or {}).get("magnitude"),
+                thevenin.get("scr"),
+                thevenin.get("escr"),
+                thevenin.get("grid_strength"),
+            ]
+        )
+    with path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(headers)
+        writer.writerows(rows)
+    return {"path": path.name, "row_count": len(rows), "columns": headers}
+
+
+def _markdown_value(value: Any, unit: str = "") -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float):
+        text = f"{value:.6g}"
+    else:
+        text = str(value)
+    return f"{text} {unit}".strip().replace("|", "\\|")
+
+
+def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[str, Any]:
+    """Write the human-readable evidence report consumed by downstream tooling."""
+    analysis = result_data.get("analysis", {})
+    summary = result_data.get("summary", {})
+    lines = [
+        "# 短路电流分析报告",
+        "",
+        "## 分析对象",
+        "",
+        f"- 模型：`{result_data.get('model_rid') or result_data.get('model') or 'n/a'}`",
+        f"- CloudPSS 仿真任务：`{result_data.get('task_id') or 'n/a'}`",
+        f"- 目标故障：`{analysis.get('target_fault_id') or 'n/a'}`",
+        f"- 故障母线：`{analysis.get('fault_bus') or 'n/a'}`",
+        f"- 基准线电压：{_markdown_value(analysis.get('base_voltage_kv'), 'kV')}",
+        "- 分析电流统一单位：`kA`",
+        "",
+        "## 汇总结论",
+        "",
+        f"- 分析通道数量：{summary.get('channel_count', 0)}",
+        f"- 最大峰值电流：{_markdown_value(summary.get('max_peak_current'), 'kA')}",
+        f"- 最大故障 RMS 电流：{_markdown_value(summary.get('max_fault_rms_current'), 'kA')}",
+        f"- 最大稳态故障 RMS 电流：{_markdown_value(summary.get('max_steady_fault_rms_current'), 'kA')}",
+        f"- 最大短路容量：{_markdown_value(summary.get('max_short_circuit_mva'), 'MVA')}",
+        f"- 最小 SCR：{_markdown_value(summary.get('min_scr'))}",
+        f"- 最小 ESCR：{_markdown_value(summary.get('min_escr'))}",
+        f"- 最弱电网等级：`{summary.get('worst_grid_strength') or 'not_assessed'}`",
+        "",
+        "## 通道指标",
+        "",
+        "| 通道 | 原始单位 | 单位依据 | 峰值 (kA) | 故障 RMS (kA) | 稳态故障 RMS (kA) | 短路容量 (MVA) | SCR | ESCR |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for channel in result_data.get("channels", []):
+        metrics = channel.get("analysis", {})
+        unit = channel.get("unit", {})
+        thevenin = metrics.get("thevenin", {})
+        cells = [
+            channel.get("channel"),
+            unit.get("raw_unit"),
+            unit.get("unit_source"),
+            metrics.get("peak_current"),
+            metrics.get("fault_rms_current"),
+            metrics.get("steady_fault_rms_current"),
+            metrics.get("short_circuit_mva"),
+            thevenin.get("scr"),
+            thevenin.get("escr"),
+        ]
+        lines.append("| " + " | ".join(_markdown_value(value) for value in cells) + " |")
+    lines.extend(
+        [
+            "",
+            "## Thevenin Equivalent and SCR",
+            "",
+            f"- 最小戴维南标幺阻抗、SCR 和 ESCR 以各通道计算结果及 `summary.csv` 为准。",
+            f"- 当前最弱电网等级：`{summary.get('worst_grid_strength') or 'not_assessed'}`。",
+            "",
+            "## 方法与限制",
+            "",
+            "- 真实电流通道的原始单位由其 CloudPSS 元件定义参数元数据确认，并在计算前换算为 kA。",
+            "- `waveform.csv` 保存参与分析的标准化电流；`raw_waveforms/` 保存 CloudPSS 原始数值。",
+            "- 短路容量采用三相近似 `Ssc = √3 × Vll(kV) × I(kA)`。",
+            "- SCR/ESCR 与戴维南等值属于工程初筛，不替代设备校核级短路计算和并网专题研究。",
+            "- 完整逐点波形不写入本报告，避免把大量时序数据加载到智能体上下文。",
+            "",
+        ]
+    )
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return {"path": path.name, "channel_count": len(result_data.get("channels", []))}
+
+
+def _write_waveform_summary(path: Path, result_data: dict[str, Any]) -> dict[str, Any]:
+    payload = {
+        "task_id": result_data.get("task_id"),
+        "time_unit": "s",
+        "value_unit": "kA",
+        "normalized": True,
+        "channels": [
+            {
+                "channel": row.get("channel"),
+                "method": row.get("analysis", {}).get("method"),
+                "sample_count": row.get("analysis", {}).get("sample_count"),
+                "time_start_s": row.get("analysis", {}).get("t_start"),
+                "time_end_s": row.get("analysis", {}).get("t_end"),
+                "min_current_ka": row.get("analysis", {}).get("min_current"),
+                "max_current_ka": row.get("analysis", {}).get("max_current"),
+                "peak_current_ka": row.get("analysis", {}).get("peak_current"),
+                "raw_unit": row.get("unit", {}).get("raw_unit"),
+                "unit_source": row.get("unit", {}).get("unit_source"),
+            }
+            for row in result_data.get("channels", [])
+        ],
+    }
+    _write_json(path, payload)
+    return {"path": path.name, "channel_count": len(payload["channels"])}
+
+
+def _write_analysis_code_snapshot(
+    path: Path,
+    *,
+    source: str,
+    resolved_config: dict[str, Any],
+) -> dict[str, Any]:
+    """Write one self-contained source snapshot without waveforms or credentials."""
+    runtime_path = Path(__file__).resolve()
+    metadata_path = runtime_path.with_name("component_metadata.py")
+    if not metadata_path.is_file():
+        content = runtime_path.read_text(encoding="utf-8")
+        path.write_text(content, encoding="utf-8")
+        return {
+            "path": path.name,
+            "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "self_contained": True,
+        }
+    metadata_source = metadata_path.read_text(encoding="utf-8")
+    runtime_source = runtime_path.read_text(encoding="utf-8")
+    metadata_source = metadata_source.replace("from __future__ import annotations\n", "", 1)
+    runtime_source = runtime_source.replace("from __future__ import annotations\n", "", 1)
+    runtime_source = runtime_source.replace(
+        "from .component_metadata import resolve_current_parameter_metadata\n", "", 1
+    )
+    invocation = (
+        "\n\nif __name__ == '__main__':\n"
+        f"    _REPRODUCTION_SOURCE = {source!r}\n"
+        f"    _REPRODUCTION_CONFIG = json.loads({json.dumps(resolved_config, ensure_ascii=False)!r})\n"
+        "    print(json.dumps(analyze_model_from_source(_REPRODUCTION_SOURCE, config=_REPRODUCTION_CONFIG), "
+        "ensure_ascii=False, indent=2))\n"
+    )
+    content = (
+        '"""Complete short-circuit analysis implementation snapshot for this task.\n\n'
+        "Waveform samples and authentication credentials are intentionally not embedded.\n"
+        '"""\nfrom __future__ import annotations\n\n'
+        + metadata_source
+        + "\n\n"
+        + runtime_source
+        + invocation
+    )
+    path.write_text(content, encoding="utf-8")
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    return {"path": path.name, "sha256": digest, "self_contained": True}
 
 
 def analyze_model_from_source(
@@ -894,7 +1227,6 @@ def analyze_model_from_source(
             else None
         )
         snapshot = inspect_model(model, target_fault_id=target_fault_id)
-        _emit_stage(stage)
 
         if not snapshot.get("faults", {}).get("active"):
             raise RuntimeError(
@@ -905,6 +1237,7 @@ def analyze_model_from_source(
         # Only advance the checkpoint after configuration resolution succeeds.
         resolved_config = _merge_analysis_config(config, snapshot)
         _validate_analysis_channel_prerequisites(snapshot, resolved_config)
+        _emit_stage(stage)
         stage = "emt_analysis"
         job = run_emt(model, timeout=timeout)
         task_id = _task_id_from_job(job)
@@ -927,6 +1260,10 @@ def analyze_model_from_source(
         model_parameters_path = task_dir / "model_parameters.json"
         task_path = task_dir / "task.json"
         waveform_path = task_dir / "waveform.csv"
+        waveform_summary_path = task_dir / "waveform_summary.json"
+        summary_csv_path = task_dir / "summary.csv"
+        markdown_path = task_dir / "analysis_report.md"
+        analysis_code_path = task_dir / "analysis_code.py"
         raw_waveform_dir_name = "raw_waveforms"
         waveform_metadata = _write_waveform_csv(
             waveform_path,
@@ -936,10 +1273,33 @@ def analyze_model_from_source(
             task_dir,
             raw_waveform_dir_name,
             _collect_all_waveform_traces(job.result),
+            {
+                row["channel"]: {
+                    "raw_unit": row.get("unit", {}).get("raw_unit"),
+                    "unit_source": row.get("unit", {}).get("unit_source"),
+                    "definition_rid": row.get("unit", {}).get("definition_rid"),
+                }
+                for row in result.get("channels", [])
+                if row.get("kind") == "current"
+            },
+        )
+        waveform_summary_metadata = _write_waveform_summary(waveform_summary_path, result)
+        summary_csv_metadata = _write_summary_csv(summary_csv_path, result)
+        markdown_metadata = _write_analysis_markdown(markdown_path, result)
+        analysis_code_metadata = _write_analysis_code_snapshot(
+            analysis_code_path,
+            source=source,
+            resolved_config=resolved_config,
         )
         result["waveform_files"] = {
             "selected": waveform_metadata,
             "raw": raw_waveform_metadata,
+        }
+        result["artifacts"] = {
+            "waveform_summary": waveform_summary_metadata,
+            "summary_csv": summary_csv_metadata,
+            "analysis_report": markdown_metadata,
+            "analysis_code": analysis_code_metadata,
         }
         _write_json(model_parameters_path, snapshot)
         _write_json(analysis_path, result)
@@ -952,6 +1312,10 @@ def analyze_model_from_source(
                 "model_parameters": model_parameters_path.name,
                 "analysis_result": analysis_path.name,
                 "waveform": waveform_path.name,
+                "waveform_summary": waveform_summary_path.name,
+                "summary_csv": summary_csv_path.name,
+                "analysis_report": markdown_path.name,
+                "analysis_code": analysis_code_path.name,
                 "raw_waveforms": raw_waveform_dir_name,
             },
         )
@@ -1056,7 +1420,7 @@ def _resolve_config(config: dict[str, Any] | None) -> dict[str, Any]:
         "fault_type": analysis.get("fault_type"),
         "declared_current_sources": declared_current_sources,
         "fault_current_channel": analysis.get("fault_current_channel"),
-        "current_scale": float(analysis.get("current_scale", 1.0)),
+        "calibration_scale": float(analysis.get("calibration_scale", 1.0)),
         "power_scale_mw": float(analysis.get("power_scale_mw", 1.0)),
         "voltage_scale_pu": float(analysis.get("voltage_scale_pu", 1.0)),
         "nominal_voltage_pu": float(analysis.get("nominal_voltage_pu", 1.0)),
@@ -1258,6 +1622,7 @@ def _select_declared_current_traces(
                             "plot_index": plot_index,
                             "plot": _plot_name(plot, plot_index),
                             "trace": {"x": x_values, "y": y_values},
+                            "declared_source": dict(source),
                         }
                     )
         if candidates:
@@ -1803,11 +2168,16 @@ def run_short_circuit_analysis(
 
     rows: list[dict[str, Any]] = []
     for item in selected:
+        declared_source = item.get("declared_source", {})
+        unit_metadata = declared_source.get("current_unit", {})
+        unit_scale_to_ka = float(unit_metadata.get("unit_scale_to_ka"))
+        calibration_scale = resolved["calibration_scale"]
+        effective_current_scale = unit_scale_to_ka * calibration_scale
         analysis = analyze_short_circuit_trace(
             item["trace"],
             kind=item["kind"],
             base_voltage_kv=resolved["base_voltage_kv"],
-            current_scale=resolved["current_scale"],
+            current_scale=effective_current_scale,
             analysis_window=resolved["analysis_window"],
             prefault_window=resolved["prefault_window"],
             fault_window=resolved["fault_window"],
@@ -1826,6 +2196,12 @@ def run_short_circuit_analysis(
                 "plot_index": item["plot_index"],
                 "plot": item["plot"],
                 "channel": item["channel"],
+                "source": declared_source,
+                "unit": {
+                    **unit_metadata,
+                    "calibration_scale": calibration_scale,
+                    "effective_current_scale": effective_current_scale,
+                },
                 "analysis": analysis,
             }
         )
@@ -1863,6 +2239,14 @@ def run_short_circuit_analysis(
                 "plot_index": item["plot_index"],
                 "plot": item["plot"],
                 "channel": item["channel"],
+                "unit": {
+                    "raw_unit": "kA",
+                    "normalized_unit": "kA",
+                    "unit_source": "derived_from_power_voltage_formula",
+                    "unit_scale_to_ka": 1.0,
+                    "calibration_scale": 1.0,
+                    "effective_current_scale": 1.0,
+                },
                 "source_channels": {
                     "power": item["power_channel"],
                     "voltage": item["voltage_channel"],
@@ -1907,7 +2291,8 @@ def run_short_circuit_analysis(
             "fault_bus": resolved["fault_bus"],
             "target_fault_id": resolved["target_fault_id"],
             "fault_type": resolved["fault_type"],
-            "current_scale": resolved["current_scale"],
+            "normalized_current_unit": "kA",
+            "calibration_scale": resolved["calibration_scale"],
             "power_scale_mw": resolved["power_scale_mw"],
             "voltage_scale_pu": resolved["voltage_scale_pu"],
             "nominal_voltage_pu": resolved["nominal_voltage_pu"],
