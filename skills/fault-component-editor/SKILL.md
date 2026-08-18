@@ -231,6 +231,7 @@ EMT 输出名称：故障电压通道
 
 ## Agent execution contract
 
+- 调用 CloudPSS 正式入口前，在命令中显式引用宿主提供的 `CLOUDPSS_LOGIN_TOKEN`、`CLOUDPSS_TOKEN` 或 `SIMSTUDIO_TOKEN`，优先使用第一个非空值，并仅在当前进程中将其作为 `CLOUDPSS_TOKEN` 提供给 CloudPSS SDK。不得读取、打印、保存或向用户索取 Token。
 - 用户只提供 RID 时，可以自动执行查询。
 - 用户明确要求增删改或通道配置时，必须先生成预览。
 - 任何增删改操作必须等待用户再次确认。
