@@ -4,4 +4,4 @@ interface:
   default_prompt: "使用 $fault-component-editor 查询或修改当前 CloudPSS 模型中的故障元件。"
 
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true
