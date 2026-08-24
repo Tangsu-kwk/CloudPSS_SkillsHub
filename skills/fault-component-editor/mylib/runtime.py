@@ -16,9 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .component_metadata import try_resolve_current_parameter_metadata
-
 FAULT_DEFINITION = "model/CloudPSS/_newFaultResistor_3p"
+SUPPORTED_FAULT_DEFINITIONS = frozenset({FAULT_DEFINITION})
 GND_DEFINITION = "model/CloudPSS/GND"
 CHANNEL_DEFINITION = "model/CloudPSS/_newChannel"
 FAULT_FIELDS = ("fs", "fe", "ft", "Init", "chg", "I", "V")
@@ -71,6 +70,33 @@ def _components_from_model(model: Any) -> dict[str, Any]:
     getter = getattr(model, "getAllComponents", None)
     value = getter() if callable(getter) else {}
     return {str(key): item for key, item in value.items()} if isinstance(value, dict) else {}
+
+
+def _components_by_definition(model: Any, definitions: set[str] | frozenset[str]) -> dict[str, Any]:
+    """Use the SDK's definition index when available, with a compatibility fallback."""
+    getter = getattr(model, "getComponentsByRid", None)
+    if callable(getter):
+        matched: dict[str, Any] = {}
+        try:
+            for definition in definitions:
+                value = getter(definition)
+                if isinstance(value, dict):
+                    matched.update({str(key): item for key, item in value.items()})
+                elif isinstance(value, (list, tuple)):
+                    for item in value:
+                        component_id = str(getattr(item, "id", "") or _component_json(item).get("id") or "")
+                        if component_id:
+                            matched[component_id] = item
+            return matched
+        except (AttributeError, KeyError, TypeError):
+            # Older SDK releases expose a different getComponentsByRid shape.
+            # Fall back to the stable whole-model accessor in that case.
+            pass
+    return {
+        component_id: raw
+        for component_id, raw in _components_from_model(model).items()
+        if str(_component_json(raw).get("definition") or "") in definitions
+    }
 
 
 def _cells(model_json: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -307,9 +333,9 @@ def _target_pin_name(plan: dict[str, Any], target_id: str, target_port: str, tar
 
 
 def _is_fault(component: dict[str, Any]) -> bool:
-    definition = str(component.get("definition") or "").lower()
+    definition = str(component.get("definition") or "")
     props = component.get("props") if isinstance(component.get("props"), dict) else {}
-    return "faultresistor" in definition and props.get("enabled", True) is not False
+    return definition in SUPPORTED_FAULT_DEFINITIONS and props.get("enabled", True) is not False
 
 
 def _is_channel(component: dict[str, Any]) -> bool:
@@ -321,7 +347,13 @@ def _is_gnd(component: dict[str, Any]) -> bool:
 
 
 def _faults(model: Any, model_json: dict[str, Any]) -> list[dict[str, Any]]:
-    objects = _components_from_model(model) or _cells(model_json)
+    objects = _components_by_definition(model, SUPPORTED_FAULT_DEFINITIONS)
+    if not objects:
+        objects = {
+            component_id: component
+            for component_id, component in _cells(model_json).items()
+            if _is_fault(component)
+        }
     faults: list[dict[str, Any]] = []
     for component_id, raw in objects.items():
         component = _component_json(raw)
@@ -334,37 +366,18 @@ def _faults(model: Any, model_json: dict[str, Any]) -> list[dict[str, Any]]:
                 "name": _display_name(component_id, component),
                 "definition": component.get("definition"),
                 "args": {key: copy.deepcopy(args.get(key)) for key in FAULT_FIELDS if key in args},
-                "props": copy.deepcopy(component.get("props", {})),
                 "pins": copy.deepcopy(component.get("pins", {})),
             }
         )
     return faults
 
 
-def _attach_fault_current_unit_metadata(faults: list[dict[str, Any]]) -> None:
-    """Enrich query/snapshot data without blocking editing when GraphQL is unavailable."""
-    cache: dict[str, dict[str, Any]] = {}
-    for fault in faults:
-        definition = str(fault.get("definition") or "").strip()
-        args = fault.get("args") if isinstance(fault.get("args"), dict) else {}
-        if not _source(args.get("I")):
-            fault["current_unit"] = {
-                "status": "not_applicable",
-                "definition_rid": definition,
-                "parameter_key": "I",
-                "message": "The fault has no declared args.I current channel",
-            }
-            continue
-        metadata = cache.get(definition)
-        if metadata is None:
-            metadata = try_resolve_current_parameter_metadata(definition, "I")
-            cache[definition] = metadata
-        fault["current_unit"] = copy.deepcopy(metadata)
-
-
 def _resolve_fault(model: Any, model_json: dict[str, Any], identifier: str) -> tuple[str, Any, dict[str, Any]]:
     matches = []
-    for component_id, raw in (_components_from_model(model) or _cells(model_json)).items():
+    objects = _components_by_definition(model, SUPPORTED_FAULT_DEFINITIONS)
+    if not objects:
+        objects = _components_from_model(model) or _cells(model_json)
+    for component_id, raw in objects.items():
         component = _component_json(raw)
         if not _is_fault(component):
             continue
@@ -401,7 +414,12 @@ def _incident_edges(cells: dict[str, dict[str, Any]], component_id: str) -> dict
 
 def _channel_reference(component: dict[str, Any]) -> str | None:
     pins = component.get("pins") if isinstance(component.get("pins"), dict) else {}
-    return str(_source(pins.get("0")) or "").strip() or None
+    args = component.get("args") if isinstance(component.get("args"), dict) else {}
+    for value in (pins.get("0"), args.get("Input"), args.get("Channel Name"), args.get("Name")):
+        reference = str(_source(value) or "").strip()
+        if reference:
+            return reference
+    return None
 
 
 def _reference_variants(value: Any) -> set[str]:
@@ -413,7 +431,13 @@ def _reference_variants(value: Any) -> set[str]:
 
 def _fault_channel_links(model: Any, model_json: dict[str, Any], fault_component: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     args = fault_component.get("args") if isinstance(fault_component.get("args"), dict) else {}
-    components = _components_from_model(model) or _cells(model_json)
+    components = _components_by_definition(model, frozenset({CHANNEL_DEFINITION}))
+    if not components:
+        components = {
+            component_id: component
+            for component_id, component in _cells(model_json).items()
+            if _is_channel(component)
+        }
     links: dict[str, list[dict[str, Any]]] = {"I": [], "V": []}
     for field in ("I", "V"):
         wanted = _reference_variants(args.get(field))
@@ -431,7 +455,7 @@ def _fault_channel_links(model: Any, model_json: dict[str, Any], fault_component
 
 def _fault_ground_links(model: Any, model_json: dict[str, Any], fault_id: str) -> dict[str, Any]:
     cells = _cells(model_json)
-    components = _components_from_model(model) or cells
+    components = cells or _components_from_model(model)
     fault_edges = _incident_edges(cells, fault_id)
     gnds: list[dict[str, Any]] = []
     target_edges: list[dict[str, Any]] = []
@@ -463,9 +487,127 @@ def _fault_ground_links(model: Any, model_json: dict[str, Any], fault_id: str) -
             target_edges.append(item)
         else:
             uncertain.append(item)
-    if not network_pin or ground_pin != "GND":
+    if not fault_edges and (not network_pin or ground_pin != "GND"):
         uncertain.append({"component_id": fault_id, "pins": copy.deepcopy(pins), "reason": "fault pins do not match logical pin-name topology"})
     return {"fault_edges": fault_edges, "gnds": gnds, "targets": target_edges, "uncertain": uncertain, "network_pin": network_pin, "ground_pin": ground_pin}
+
+
+def _reference_fields(component: dict[str, Any]) -> set[str]:
+    """Collect exact signal-like references without interpreting arbitrary text."""
+    values: set[str] = set()
+    for container_name in ("args", "pins"):
+        container = component.get(container_name)
+        if not isinstance(container, dict):
+            continue
+        for value in container.values():
+            text = str(_source(value) or "").strip()
+            if text:
+                values.update(_reference_variants(text))
+    return values
+
+
+def _relationship_index(model: Any, model_json: dict[str, Any]) -> dict[str, Any]:
+    """Build one reusable index for ownership-aware edit planning."""
+    components = _components_from_model(model) or _cells(model_json)
+    cells = _cells(model_json)
+    edges = _edges(cells)
+    incident = {component_id: _incident_edges(cells, component_id) for component_id in components}
+    references = {
+        component_id: _reference_fields(_component_json(raw))
+        for component_id, raw in components.items()
+    }
+    return {"components": components, "cells": cells, "edges": edges, "incident_edges": incident, "references": references}
+
+
+def _delete_plan(model: Any, model_json: dict[str, Any], fault_id: str, *, only_fault: bool = False) -> dict[str, Any]:
+    """Plan a safe cascade using actual edges and exact signal references."""
+    index = _relationship_index(model, model_json)
+    components = index["components"]
+    fault = _component_json(components.get(fault_id))
+    direct_edges = index["incident_edges"].get(fault_id, {})
+    topology = _fault_ground_links(model, model_json, fault_id)
+    links = _fault_channel_links(model, model_json, fault)
+    channel_ids = {item["id"] for values in links.values() for item in values}
+    delete_components: set[str] = {fault_id}
+    preserved: list[dict[str, Any]] = []
+
+    direct_gnds: set[str] = set()
+    for edge in direct_edges.values():
+        (source_id, _), (target_id, _) = _edge_endpoints(edge)
+        other_id = target_id if source_id == fault_id else source_id
+        if other_id and _is_gnd(_component_json(components.get(other_id))):
+            direct_gnds.add(other_id)
+
+    logical_gnds = {
+        str(item.get("component_id"))
+        for item in topology["gnds"]
+        if item.get("component_id") and not item.get("edge_id")
+    }
+
+    if only_fault:
+        preserved.extend(
+            {"component_id": component_id, "kind": "channel", "reason": "only_fault authorization"}
+            for component_id in sorted(channel_ids)
+        )
+        preserved.extend(
+            {"component_id": component_id, "kind": "gnd", "reason": "only_fault authorization"}
+            for component_id in sorted(direct_gnds)
+        )
+    else:
+        for gnd_id in sorted(direct_gnds):
+            other_edges = set(index["incident_edges"].get(gnd_id, {})) - set(direct_edges)
+            if other_edges:
+                preserved.append({"component_id": gnd_id, "kind": "gnd", "reason": "shared by other diagram edges", "references": sorted(other_edges)})
+            else:
+                delete_components.add(gnd_id)
+        for channel_id in sorted(channel_ids):
+            channel_reference = _channel_reference(_component_json(components.get(channel_id)))
+            variants = _reference_variants(channel_reference)
+            other_users = sorted(
+                component_id
+                for component_id, references in index["references"].items()
+                if component_id not in {fault_id, channel_id} and references & variants
+            )
+            other_edges = []
+            for edge_id, edge in index["incident_edges"].get(channel_id, {}).items():
+                endpoints = {component_id for component_id, _ in _edge_endpoints(edge) if component_id}
+                if endpoints - {fault_id, channel_id}:
+                    other_edges.append(edge_id)
+            if other_users or other_edges:
+                preserved.append(
+                    {
+                        "component_id": channel_id,
+                        "kind": "channel",
+                        "reason": "referenced by other components",
+                        "references": sorted(set(other_users + other_edges)),
+                    }
+                )
+            else:
+                delete_components.add(channel_id)
+
+    uncertain = list(topology["uncertain"])
+    if logical_gnds - direct_gnds:
+        uncertain.append(
+            {
+                "component_ids": sorted(logical_gnds - direct_gnds),
+                "reason": "ground ownership cannot be proven without a direct diagram-edge",
+            }
+        )
+    for item in uncertain:
+        item.setdefault("reason", "relationship cannot be proven from model data")
+    delete_edge_ids = set(direct_edges)
+    for component_id in delete_components:
+        delete_edge_ids.update(index["incident_edges"].get(component_id, {}))
+    return {
+        "fault_id": fault_id,
+        "delete_edge_ids": sorted(delete_edge_ids),
+        "delete_component_ids": sorted(delete_components),
+        "delete_channel_ids": sorted(channel_ids & delete_components),
+        "delete_gnd_ids": sorted(direct_gnds & delete_components),
+        "preserved": preserved,
+        "uncertain": uncertain,
+        "target_links": topology["targets"],
+    }
 
 
 def _output_channel_entries(model_json: dict[str, Any], component_ids: set[str] | None = None) -> list[dict[str, Any]]:
@@ -481,6 +623,21 @@ def _output_channel_entries(model_json: dict[str, Any], component_ids: set[str] 
             if component_ids is None or component_ids & selected_ids:
                 entries.append({"job_index": job_index, "entry_index": entry_index, "entry": copy.deepcopy(entry), "component_ids": sorted(selected_ids)})
     return entries
+
+
+def _output_channel_summaries(model_json: dict[str, Any], component_ids: set[str]) -> list[dict[str, Any]]:
+    summaries = []
+    for item in _output_channel_entries(model_json, component_ids):
+        entry = item["entry"] if isinstance(item.get("entry"), dict) else {}
+        summaries.append(
+            {
+                "job_index": item["job_index"],
+                "entry_index": item["entry_index"],
+                "name": entry.get("0"),
+                "component_ids": item["component_ids"],
+            }
+        )
+    return summaries
 
 
 def _normalize_update(changes: dict[str, Any]) -> dict[str, Any]:
@@ -564,37 +721,13 @@ def _snapshot_payload(
     model: Any,
     source: str | None,
     version: str,
-    cached_unit_metadata: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     model_json = _json_safe(model.toJSON()) if callable(getattr(model, "toJSON", None)) else _json_safe(model)
-    faults = _faults(model, model_json)
-    cached_by_definition = {
-        str(item.get("definition") or ""): copy.deepcopy(item.get("current_unit"))
-        for item in (cached_unit_metadata or [])
-        if isinstance(item, dict) and item.get("definition")
-    }
-    for fault in faults:
-        definition = str(fault.get("definition") or "")
-        fault["current_unit"] = cached_by_definition.get(definition) or {
-            "status": "not_queried",
-            "definition_rid": definition,
-            "parameter_key": "I",
-            "message": "Run the query operation to refresh current-unit metadata",
-        }
     return {
         "source": source,
         "version": version,
         "model": model_json,
         "components": {key: _component_json(value) for key, value in _components_from_model(model).items()},
-        "fault_unit_metadata": [
-            {
-                "id": fault.get("id"),
-                "definition": fault.get("definition"),
-                "current_channel": _source((fault.get("args") or {}).get("I")),
-                "current_unit": fault.get("current_unit"),
-            }
-            for fault in faults
-        ],
     }
 
 
@@ -606,7 +739,6 @@ def _state(session_state: dict[str, Any]) -> dict[str, Any]:
     session_state.setdefault("version_snapshots", {})
     session_state.setdefault("version_models", {})
     session_state.setdefault("pending_preview", None)
-    session_state.setdefault("fault_unit_metadata", [])
     return session_state
 
 
@@ -639,17 +771,17 @@ def _ensure_model(session_state: dict[str, Any]) -> Any:
 def _write_snapshot(state: dict[str, Any], model: Any, version: str, kind: str = "model_parameters") -> str:
     root = Path(state.get("snapshot_dir") or Path.cwd() / "results" / "fault_component_editor")
     root.mkdir(parents=True, exist_ok=True)
-    payload = _snapshot_payload(
-        model,
-        state.get("original_rid"),
-        version,
-        state.get("fault_unit_metadata"),
-    )
+    payload = _snapshot_payload(model, state.get("original_rid"), version)
     path = root / f"{kind}_{version}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     state["version_snapshots"][version] = str(path.resolve())
     state["version_models"][version] = copy.deepcopy(payload["model"])
     return str(path.resolve())
+
+
+def _ensure_original_snapshot(state: dict[str, Any], model: Any) -> None:
+    if "v000_original" not in state["version_snapshots"]:
+        _write_snapshot(state, model, "v000_original")
 
 
 def _restore_version(state: dict[str, Any], version: str) -> Any:
@@ -760,11 +892,12 @@ def _add_output_channel(model: Any, channel_id: str, display_name: str, sample_r
     configured.append({"0": display_name, "1": int(sample_rate), "2": "compressed", "3": 1, "4": [channel_id]})
 
 
-def _remove_output_channels(model: Any, component_ids: set[str]) -> list[dict[str, Any]]:
-    removed = []
+def _remove_output_channel_references(model: Any, component_ids: set[str]) -> list[dict[str, Any]]:
+    """Remove only selected component ids; preserve mixed output entries and metadata."""
+    changes = []
     jobs = getattr(model, "jobs", None)
     if not isinstance(jobs, list):
-        return removed
+        return changes
     for job_index, job in enumerate(jobs):
         args = job.get("args") if isinstance(job, dict) and isinstance(job.get("args"), dict) else {}
         configured = args.get("output_channels")
@@ -772,13 +905,25 @@ def _remove_output_channels(model: Any, component_ids: set[str]) -> list[dict[st
             continue
         kept = []
         for entry_index, entry in enumerate(configured):
-            selected = set(str(item) for item in entry.get("4", [])) if isinstance(entry, dict) and isinstance(entry.get("4", []), list) else set()
-            if selected and selected <= component_ids:
-                removed.append({"job_index": job_index, "entry_index": entry_index, "entry": copy.deepcopy(entry)})
-            else:
+            selected_list = entry.get("4", []) if isinstance(entry, dict) else []
+            if not isinstance(selected_list, list):
                 kept.append(entry)
+                continue
+            remaining = [item for item in selected_list if str(item) not in component_ids]
+            removed_ids = [str(item) for item in selected_list if str(item) in component_ids]
+            if not removed_ids:
+                kept.append(entry)
+                continue
+            before = copy.deepcopy(entry)
+            if remaining:
+                updated = copy.deepcopy(entry)
+                updated["4"] = remaining
+                kept.append(updated)
+                changes.append({"job_index": job_index, "entry_index": entry_index, "action": "updated", "removed_component_ids": removed_ids, "before": before, "after": copy.deepcopy(updated)})
+            else:
+                changes.append({"job_index": job_index, "entry_index": entry_index, "action": "removed", "removed_component_ids": removed_ids, "before": before})
         args["output_channels"] = kept
-    return removed
+    return changes
 
 
 def _create_channel(model: Any, pin_name: str, dim: int, canvas: str | None, display_name: str, sample_rate: int) -> dict[str, Any]:
@@ -872,7 +1017,7 @@ def _create_fault_bundle(model: Any, request: EditRequest) -> dict[str, Any]:
 
 
 def inspect_model_from_context(
-    session_state: dict[str, Any], *, include_cells: bool = True
+    session_state: dict[str, Any], *, include_cells: bool = False
 ) -> dict[str, Any]:
     state = _state(session_state)
     model = _ensure_model(state)
@@ -880,30 +1025,27 @@ def inspect_model_from_context(
     if not isinstance(model_json, dict):
         raise TypeError("CloudPSS model JSON must be an object")
     faults = _faults(model, model_json)
-    _attach_fault_current_unit_metadata(faults)
-    state["fault_unit_metadata"] = [
-        {
-            "id": fault.get("id"),
-            "definition": fault.get("definition"),
-            "current_channel": _source((fault.get("args") or {}).get("I")),
-            "current_unit": copy.deepcopy(fault.get("current_unit")),
-        }
-        for fault in faults
-    ]
-    if "v000_original" not in state["version_snapshots"]:
-        _write_snapshot(state, model, "v000_original")
     for fault in faults:
         _, _, component = _resolve_fault(model, model_json, fault["id"])
-        fault["channels"] = _fault_channel_links(model, model_json, component)
-        fault["topology"] = _fault_ground_links(model, model_json, fault["id"])
-        component_ids = {item["id"] for items in fault["channels"].values() for item in items}
-        fault["output_channels"] = _output_channel_entries(model_json, component_ids)
+        channels = _fault_channel_links(model, model_json, component)
+        topology = _fault_ground_links(model, model_json, fault["id"])
+        component_ids = {item["id"] for items in channels.values() for item in items}
+        fault["channels"] = {
+            field: [{"id": item["id"], "reference": item["reference"]} for item in items]
+            for field, items in channels.items()
+        }
+        fault["topology"] = {
+            "edge_ids": sorted(topology["fault_edges"]),
+            "target_component_ids": sorted({str(item.get("component_id")) for item in topology["targets"] if item.get("component_id")}),
+            "ground_component_ids": sorted({str(item.get("component_id")) for item in topology["gnds"] if item.get("component_id")}),
+            "uncertain": topology["uncertain"],
+        }
+        fault["output_channel_references"] = _output_channel_summaries(model_json, component_ids)
     result = {
         "status": "ok",
         "original_rid": state.get("original_rid"),
         "current_version": state["current_version"],
         "faults": faults,
-        "output_channels": _output_channel_entries(model_json),
     }
     if include_cells:
         result["cells"] = _cells(model_json)
@@ -942,10 +1084,13 @@ def _preview_configure_channel(model: Any, model_json: dict[str, Any], request: 
 def _preview_delete(model: Any, model_json: dict[str, Any], request: EditRequest) -> dict[str, Any]:
     identifier = str(request.target.get("id") or request.target.get("name") or "").strip()
     component_id, _, component = _resolve_fault(model, model_json, identifier)
-    channels = _fault_channel_links(model, model_json, component)
-    topology = _fault_ground_links(model, model_json, component_id)
-    channel_ids = {item["id"] for items in channels.values() for item in items}
-    return {"target": {"id": component_id, "name": _display_name(component_id, component)}, "fault_edges": list(topology["fault_edges"]), "ground_links": topology["gnds"], "target_links": topology["targets"], "uncertain_links": topology["uncertain"], "channels": channels, "output_channels": _output_channel_entries(model_json, channel_ids), "requires_only_fault_authorization": bool(topology["uncertain"])}
+    plan = _delete_plan(model, model_json, component_id, only_fault=bool(request.options.get("only_fault")))
+    return {
+        "target": {"id": component_id, "name": _display_name(component_id, component)},
+        "delete_plan": plan,
+        "output_channels": _output_channel_entries(model_json, set(plan["delete_channel_ids"])),
+        "requires_only_fault_authorization": bool(plan["uncertain"]),
+    }
 
 
 def _preview_create(model: Any, model_json: dict[str, Any], request: EditRequest) -> dict[str, Any]:
@@ -967,6 +1112,7 @@ def _make_preview(state: dict[str, Any], request: EditRequest) -> dict[str, Any]
     if request.operation not in SUPPORTED_OPERATIONS:
         raise ValueError(f"Unsupported operation: {request.operation}")
     model = _ensure_model(state)
+    _ensure_original_snapshot(state, model)
     model_json = _json_safe(model.toJSON())
     if request.operation == "update":
         details = _preview_update(model, model_json, request)
@@ -1031,35 +1177,69 @@ def _execute_configure_channel(state: dict[str, Any], request: EditRequest) -> d
     return {"component_id": component_id, "component_name": _display_name(component_id, component), **result}
 
 
+def _clone_model(model: Any) -> Any:
+    """Create an isolated working model so a failed cascade cannot leak mutations."""
+    try:
+        cloned = copy.deepcopy(model)
+        if cloned is not model and callable(getattr(cloned, "toJSON", None)):
+            return cloned
+    except Exception:
+        pass
+    try:
+        from cloudpss import Model
+    except ImportError as exc:
+        raise RuntimeError("CloudPSS dependency is unavailable for transactional editing") from exc
+    return Model(copy.deepcopy(model.toJSON()))
+
+
+def _validate_delete_result(model: Any, deleted_component_ids: set[str]) -> None:
+    model_json = _json_safe(model.toJSON())
+    components = _components_from_model(model) or _cells(model_json)
+    remaining = deleted_component_ids & set(components)
+    if remaining:
+        raise RuntimeError(f"Delete validation failed; components remain: {sorted(remaining)}")
+    for edge_id, edge in _edges(_cells(model_json)).items():
+        endpoints = {component_id for component_id, _ in _edge_endpoints(edge) if component_id}
+        dangling = endpoints & deleted_component_ids
+        if dangling:
+            raise RuntimeError(f"Delete validation failed; edge {edge_id} still references {sorted(dangling)}")
+    for entry in _output_channel_entries(model_json):
+        dangling = set(entry["component_ids"]) & deleted_component_ids
+        if dangling:
+            raise RuntimeError(f"Delete validation failed; output channel still references {sorted(dangling)}")
+
+
 def _execute_delete(state: dict[str, Any], request: EditRequest) -> dict[str, Any]:
-    model = _ensure_model(state)
+    original_model = _ensure_model(state)
+    model = _clone_model(original_model)
     model_json = _json_safe(model.toJSON())
     component_id, _, component = _resolve_fault(model, model_json, str(request.target.get("id") or request.target.get("name")))
-    topology = _fault_ground_links(model, model_json, component_id)
     only_fault = bool(request.options.get("only_fault"))
-    if topology["uncertain"] and not only_fault:
+    plan = _delete_plan(model, model_json, component_id, only_fault=only_fault)
+    if plan["uncertain"] and not only_fault:
         raise RuntimeError("Associated topology is uncertain; require only_fault authorization")
-    channels = _fault_channel_links(model, model_json, component)
-    component_ids = {item["id"] for values in channels.values() for item in values}
-    edge_ids = set(topology["fault_edges"])
-    removed_outputs = _remove_output_channels(model, component_ids)
-    removed_edges = _remove_diagram_edges(model, edge_ids) if not only_fault else []
     remover = getattr(model, "removeComponent", None)
     if not callable(remover):
         raise RuntimeError("CloudPSS Model.removeComponent is unavailable")
     # Remove edges first: the SDK otherwise rewrites endpoints to component
     # coordinates when a component is removed, leaving stale topology cells.
-    remover(component_id)
-    removed = {"fault": component_id, "component_name": _display_name(component_id, component), "edges": removed_edges, "channels": [], "gnds": [], "output_channels": removed_outputs}
-    if not only_fault:
-        for channel_id in sorted(component_ids):
-            remover(channel_id)
-            removed["channels"].append(channel_id)
-        for ground in topology["gnds"]:
-            ground_id = ground.get("component_id")
-            if ground_id:
-                remover(ground_id)
-                removed["gnds"].append(ground_id)
+    removed_edges = _remove_diagram_edges(model, set(plan["delete_edge_ids"]))
+    removed_outputs = _remove_output_channel_references(model, set(plan["delete_channel_ids"]))
+    for deleted_id in plan["delete_component_ids"]:
+        remover(deleted_id)
+    deleted_ids = set(plan["delete_component_ids"])
+    _validate_delete_result(model, deleted_ids)
+    state["memory_model"] = model
+    removed = {
+        "fault": component_id,
+        "component_name": _display_name(component_id, component),
+        "edges": removed_edges,
+        "channels": plan["delete_channel_ids"],
+        "gnds": plan["delete_gnd_ids"],
+        "output_channels": removed_outputs,
+        "preserved": plan["preserved"],
+        "uncertain": plan["uncertain"],
+    }
     return removed
 
 

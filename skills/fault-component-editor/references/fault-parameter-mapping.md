@@ -138,7 +138,7 @@ chg=0.001
 
 `I` 表示故障元件声明的故障电流内部通道。
 
-查询故障信息时，使用故障元件完整 `definition RID` 查询参数 `I` 的单位元数据。优先使用 `parameter.unit`；为空时只接受 `name` 或 `description` 中明确支持的 `[A]`、`[kA]`、`[MA]`、`[mA]`。该查询用于审计和后续分析准备，失败时标记为 `unavailable`，不得猜测单位，也不得阻止普通故障参数编辑。
+`fault-component-editor` 查询和编辑时不读取电流单位，也不执行单位 GraphQL。电流单位证据和到 `kA` 的换算属于 `short-circuit-analysis`；本 Skill 只保留模型中 `I`、`V` 的原始引用和值。
 
 默认名称：
 

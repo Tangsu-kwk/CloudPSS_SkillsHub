@@ -64,6 +64,8 @@ class FakeModel:
         )
         self.jobs = [{"rid": "function/CloudPSS/emtp", "args": {"output_channels": []}}]
         self._next_component = 0
+        self.fail_remove_id = None
+        self.definition_queries = []
 
     def toJSON(self):
         # Match CloudPSS DiagramImplement: every live cell must be an SDK-like
@@ -73,6 +75,14 @@ class FakeModel:
 
     def getAllComponents(self):
         return self.components
+
+    def getComponentsByRid(self, definition):
+        self.definition_queries.append(definition)
+        return {
+            component_id: component
+            for component_id, component in self.components.items()
+            if component.data.get("definition") == definition
+        }
 
     def addComponent(self, definition, label, args, pins, canvas=None):
         self._next_component += 1
@@ -91,23 +101,101 @@ class FakeModel:
         self.cells[component_id] = component
         return component
 
+    def removeComponent(self, component_id):
+        if component_id == self.fail_remove_id:
+            raise RuntimeError("injected remove failure")
+        self.components.pop(component_id, None)
+        self.cells.pop(component_id, None)
 
-runtime.try_resolve_current_parameter_metadata = lambda definition, parameter_key="I": {
-    "status": "resolved",
-    "definition_rid": definition,
-    "parameter_key": parameter_key,
-    "raw_unit": "kA",
-    "normalized_unit": "kA",
-    "unit_source": "parameter.name",
-    "unit_scale_to_ka": 1.0,
-}
+
+def add_component(model, data):
+    component = FakeComponent(data)
+    model.components[component.id] = component
+    model.cells[component.id] = component
+    return component
+
+
+def add_edge(model, edge_id, source_id, source_port, target_id, target_port):
+    model.cells[edge_id] = FakeDiagramCell(
+        {
+            "id": edge_id,
+            "shape": "diagram-edge",
+            "source": {"cell": source_id, "port": source_port},
+            "target": {"cell": target_id, "port": target_port},
+        }
+    )
+
+
+def fake_add_diagram_edge(model, *, source_id, source_port, target_id, target_port, canvas):
+    edge_id = f"fault-edge-{len(model.cells)}"
+    add_edge(model, edge_id, source_id, source_port, target_id, target_port)
+    return edge_id
+
+
+def deletion_model(*, shared_gnd=False, shared_channel=False, mixed_output=True):
+    model = FakeModel()
+    add_component(
+        model,
+        {
+            "id": "gnd-1",
+            "definition": runtime.GND_DEFINITION,
+            "args": {"Name": "GND-1"},
+            "pins": {"0": ""},
+        },
+    )
+    add_component(
+        model,
+        {
+            "id": "channel-1",
+            "definition": runtime.CHANNEL_DEFINITION,
+            "args": {"Name": "#I"},
+            "pins": {"0": "#I"},
+        },
+    )
+    model.components["fault-1"].pins.clear()
+    model.components["fault-1"].args["V"] = ""
+    add_edge(model, "fault-target", "canvas_0_1091", "0", "fault-1", "0")
+    add_edge(model, "fault-ground", "fault-1", "1", "gnd-1", "0")
+    add_component(
+        model,
+        {
+            "id": "other-1",
+            "definition": "model/CloudPSS/Load",
+            "args": {"Name": "Other"},
+            "pins": {"0": ""},
+        },
+    )
+    if shared_gnd:
+        add_edge(model, "other-ground", "other-1", "0", "gnd-1", "0")
+    if shared_channel:
+        add_component(
+            model,
+            {
+                "id": "fault-2",
+                "definition": runtime.FAULT_DEFINITION,
+                "args": {"Name": "F2", "I": "#I"},
+                "pins": {"0": "", "1": ""},
+            },
+        )
+    selected = ["channel-1", "other-channel"] if mixed_output else ["channel-1"]
+    model.jobs[0]["args"]["output_channels"] = [
+        {"0": "fault current", "1": 2000, "2": "compressed", "3": 1, "4": selected, "unknown": "keep"}
+    ]
+    return model
+
+
+runtime._add_diagram_edge = fake_add_diagram_edge
 
 
 with tempfile.TemporaryDirectory() as snapshot_dir:
     state = {"original_rid": "model/example/fake", "memory_model": FakeModel(), "snapshot_dir": snapshot_dir}
-    queried_faults = inspect_model_from_context(state)["faults"]
+    query = inspect_model_from_context(state)
+    queried_faults = query["faults"]
     assert queried_faults
-    assert queried_faults[0]["current_unit"]["raw_unit"] == "kA"
+    assert "current_unit" not in queried_faults[0]
+    assert "cells" not in query
+    assert "output_channels" not in query
+    assert runtime.FAULT_DEFINITION in state["memory_model"].definition_queries
     compact_query = edit_model_from_context(EditRequest("query"), state)
     assert compact_query["faults"]
     assert "cells" not in compact_query
@@ -169,4 +257,62 @@ with tempfile.TemporaryDirectory() as snapshot_dir:
         assert "ambiguous" in str(exc)
     else:
         raise AssertionError("Ambiguous target name must be rejected")
+
+with tempfile.TemporaryDirectory() as snapshot_dir:
+    model = deletion_model()
+    state = {"original_rid": "model/example/fake", "memory_model": model, "snapshot_dir": snapshot_dir}
+    preview = edit_model_from_context(EditRequest("delete", {"id": "fault-1"}), state)
+    plan = preview["preview"]["details"]["delete_plan"]
+    assert plan["uncertain"] == []
+    assert set(plan["delete_component_ids"]) == {"fault-1", "gnd-1", "channel-1"}
+    changed = edit_model_from_context(EditRequest("delete", confirmation="确认执行"), state)
+    committed = state["memory_model"]
+    assert changed["status"] == "changed"
+    assert not ({"fault-1", "gnd-1", "channel-1"} & set(committed.components))
+    assert "fault-target" not in committed.cells and "fault-ground" not in committed.cells
+    output = committed.jobs[0]["args"]["output_channels"][0]
+    assert output["4"] == ["other-channel"] and output["unknown"] == "keep"
+
+with tempfile.TemporaryDirectory() as snapshot_dir:
+    model = deletion_model(shared_gnd=True, shared_channel=True)
+    state = {"original_rid": "model/example/fake", "memory_model": model, "snapshot_dir": snapshot_dir}
+    preview = edit_model_from_context(EditRequest("delete", {"id": "fault-1"}), state)
+    plan = preview["preview"]["details"]["delete_plan"]
+    assert plan["delete_component_ids"] == ["fault-1"]
+    assert {item["component_id"] for item in plan["preserved"]} == {"gnd-1", "channel-1"}
+    edit_model_from_context(EditRequest("delete", confirmation="确认执行"), state)
+    committed = state["memory_model"]
+    assert {"gnd-1", "channel-1"} <= set(committed.components)
+    assert committed.jobs[0]["args"]["output_channels"][0]["4"] == ["channel-1", "other-channel"]
+
+with tempfile.TemporaryDirectory() as snapshot_dir:
+    model = deletion_model(mixed_output=False)
+    state = {"original_rid": "model/example/fake", "memory_model": model, "snapshot_dir": snapshot_dir}
+    edit_model_from_context(EditRequest("delete", {"id": "fault-1"}), state)
+    edit_model_from_context(EditRequest("delete", confirmation="确认执行"), state)
+    assert state["memory_model"].jobs[0]["args"]["output_channels"] == []
+
+with tempfile.TemporaryDirectory() as snapshot_dir:
+    model = deletion_model()
+    state = {"original_rid": "model/example/fake", "memory_model": model, "snapshot_dir": snapshot_dir}
+    edit_model_from_context(EditRequest("delete", {"id": "fault-1"}, options={"only_fault": True}), state)
+    edit_model_from_context(EditRequest("delete", confirmation="确认执行"), state)
+    committed = state["memory_model"]
+    assert "fault-1" not in committed.components
+    assert {"gnd-1", "channel-1"} <= set(committed.components)
+    assert "fault-target" not in committed.cells and "fault-ground" not in committed.cells
+
+with tempfile.TemporaryDirectory() as snapshot_dir:
+    model = deletion_model()
+    model.fail_remove_id = "gnd-1"
+    state = {"original_rid": "model/example/fake", "memory_model": model, "snapshot_dir": snapshot_dir}
+    edit_model_from_context(EditRequest("delete", {"id": "fault-1"}), state)
+    try:
+        edit_model_from_context(EditRequest("delete", confirmation="确认执行"), state)
+    except RuntimeError as exc:
+        assert "injected remove failure" in str(exc)
+    else:
+        raise AssertionError("Injected delete failure must be raised")
+    assert state["memory_model"] is model
+    assert {"fault-1", "gnd-1", "channel-1"} <= set(model.components)
 print("fault-component-editor runtime verification passed")
