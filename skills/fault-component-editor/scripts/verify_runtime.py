@@ -1,6 +1,8 @@
 """Offline verification for the runtime's preview/edit contract."""
 from __future__ import annotations
 
+import copy
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -316,3 +318,112 @@ with tempfile.TemporaryDirectory() as snapshot_dir:
     assert state["memory_model"] is model
     assert {"fault-1", "gnd-1", "channel-1"} <= set(model.components)
 print("fault-component-editor runtime verification passed")
+
+
+# A JSON edit plan must survive a process boundary.  These fakes model the
+# boundary by serializing the plan and by fetching a fresh model for execute.
+cloud_store = {"model/example/source": deletion_model()}
+save_calls = []
+corrupt_readback = False
+
+
+def fake_fetch_model(source):
+    if source not in cloud_store:
+        raise ValueError(f"missing fake cloud model: {source}")
+    model = copy.deepcopy(cloud_store[source])
+    if corrupt_readback and source != "model/example/source" and "fault-1" in model.components:
+        model.components["fault-1"].args["chg"] = "999"
+    return model
+
+
+def fake_save_model_copy(model, key):
+    new_rid = f"model/example/{key}"
+    cloud_store[new_rid] = copy.deepcopy(model)
+    save_calls.append(new_rid)
+    return copy.deepcopy(model), new_rid, {"fakeSave": {"rid": new_rid}}
+
+
+runtime._fetch_model_from_source = fake_fetch_model
+runtime._save_model_copy = fake_save_model_copy
+
+try:
+    runtime._execute_save_copy(
+        {"original_rid": "model/example/source", "memory_model": None},
+        EditRequest("save_copy", options={"name": "must-not-save"}),
+    )
+except RuntimeError as exc:
+    assert "cannot recover" in str(exc)
+else:
+    raise AssertionError("legacy save_copy must reject a missing in-memory edited model")
+
+update_operations = [
+    {
+        "operation": "update",
+        "target": {"id": "fault-1"},
+        "changes": {"fs": "3", "fe": "3.1", "Init": "100000000", "chg": "0.001"},
+    }
+]
+plan = runtime.preview_edit_plan_from_source("model/example/source", update_operations)
+serialized_plan = json.loads(json.dumps(plan, ensure_ascii=False))
+assert "memory_model" not in json.dumps(serialized_plan)
+assert serialized_plan["status"] == "previewed"
+saved = runtime.execute_edit_plan_from_source(serialized_plan, "model/example/updated")
+assert saved["status"] == "verified_saved"
+assert saved["new_rid"] == "model/example/updated"
+assert cloud_store["model/example/updated"].components["fault-1"].args["chg"] == "0.001"
+
+# Replaying the same sealed plan overwrites the same target snapshot and does
+# not compound edits or create duplicate components.
+saved_again = runtime.execute_edit_plan_from_source(serialized_plan, "model/example/updated")
+assert saved_again["status"] == "verified_saved"
+assert len(cloud_store["model/example/updated"].components) == len(cloud_store["model/example/source"].components)
+
+# Preview invalidation is checked before editing or saving.
+stale_plan = runtime.preview_edit_plan_from_source("model/example/source", update_operations)
+cloud_store["model/example/source"].components["fault-1"].args["fs"] = "0.15"
+save_count = len(save_calls)
+stale = runtime.execute_edit_plan_from_source(stale_plan, "model/example/stale")
+assert stale["status"] == "preview_stale"
+assert len(save_calls) == save_count
+cloud_store["model/example/source"].components["fault-1"].args["fs"] = "0.1"
+
+# A delete-and-create replacement is one transaction and is verified after a
+# fresh readback of the target RID.
+replace_operations = [
+    {"operation": "delete", "target": {"id": "fault-1"}},
+    {
+        "operation": "create",
+        "target": {"component_id": "canvas_0_1091", "port": "0"},
+        "changes": {"fs": "0.1", "fe": "0.2", "ft": "1", "Init": "1", "chg": "0.01"},
+        "options": {"name": "Bus5 replacement"},
+    },
+]
+replace_plan = runtime.preview_edit_plan_from_source("model/example/source", replace_operations)
+replaced = runtime.execute_edit_plan_from_source(
+    json.loads(json.dumps(replace_plan)), "model/example/replaced"
+)
+assert replaced["status"] == "verified_saved", replaced
+replaced_model = cloud_store["model/example/replaced"]
+assert "fault-1" not in replaced_model.components
+assert len(runtime._matching_faults_by_name(replaced_model, "Bus5 replacement")) == 1
+
+# If one operation fails, the target is never saved.
+failed_plan = runtime.preview_edit_plan_from_source("model/example/source", update_operations)
+failed_plan["operations"].append(
+    {"operation": "delete", "target": {"id": "missing-fault"}, "changes": {}, "options": {}}
+)
+failed_plan = runtime._seal_plan(runtime._plan_payload(failed_plan))
+save_count = len(save_calls)
+failed = runtime.execute_edit_plan_from_source(failed_plan, "model/example/partial")
+assert failed["status"] == "operation_failed"
+assert len(save_calls) == save_count
+assert "model/example/partial" not in cloud_store
+
+# A successful save API response is not success when readback facts differ.
+corrupt_readback = True
+bad_readback = runtime.execute_edit_plan_from_source(serialized_plan, "model/example/corrupt")
+corrupt_readback = False
+assert bad_readback["status"] == "save_verification_failed"
+assert bad_readback["verification"]["critical"]
+
+print("fault-component-editor persistent edit-plan verification passed")

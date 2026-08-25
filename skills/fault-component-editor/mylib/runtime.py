@@ -7,6 +7,7 @@ uses ``Model.runEMT`` only as a model-runnability verification.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import math
 import re
@@ -22,6 +23,8 @@ GND_DEFINITION = "model/CloudPSS/GND"
 CHANNEL_DEFINITION = "model/CloudPSS/_newChannel"
 FAULT_FIELDS = ("fs", "fe", "ft", "Init", "chg", "I", "V")
 SUPPORTED_OPERATIONS = {"query", "update", "create", "delete", "configure_channel", "save_copy"}
+PLAN_OPERATIONS = frozenset({"update", "create", "delete", "configure_channel"})
+EDIT_PLAN_SCHEMA_VERSION = 1
 
 
 @dataclass
@@ -44,6 +47,22 @@ def _json_safe(value: Any) -> Any:
     if callable(to_json):
         return _json_safe(to_json())
     return str(value)
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(_json_safe(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _fingerprint(value: Any) -> str:
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _fetch_model_from_source(source: str) -> Any:
+    try:
+        from cloudpss import Model
+    except ImportError as exc:
+        raise RuntimeError("CloudPSS dependency is unavailable") from exc
+    return Model.fetch(source)
 
 
 def _source(value: Any) -> Any:
@@ -759,11 +778,7 @@ def _ensure_model(session_state: dict[str, Any]) -> Any:
     rid = str(session_state.get("original_rid") or "").strip()
     if not rid:
         raise ValueError("original_rid is required")
-    try:
-        from cloudpss import Model
-    except ImportError as exc:
-        raise RuntimeError("CloudPSS dependency is unavailable") from exc
-    model = Model.fetch(rid)
+    model = _fetch_model_from_source(rid)
     session_state["memory_model"] = model
     return model
 
@@ -1244,6 +1259,11 @@ def _execute_delete(state: dict[str, Any], request: EditRequest) -> dict[str, An
 
 
 def _execute_save_copy(state: dict[str, Any], request: EditRequest) -> dict[str, Any]:
+    if state.get("memory_model") is None:
+        raise RuntimeError(
+            "save_copy cannot recover an edited in-memory model in a new process; "
+            "use preview_edit_plan_from_source and execute_edit_plan_from_source"
+        )
     model = _ensure_model(state)
     key = str(request.options.get("name") or "").strip()
     original_key = str(state.get("original_rid") or "").rsplit("/", 1)[-1]
@@ -1258,8 +1278,494 @@ def _execute_save_copy(state: dict[str, Any], request: EditRequest) -> dict[str,
     new_rid = str(getattr(copy_model, "rid", "") or "").strip()
     if not new_rid or new_rid == state.get("original_rid"):
         raise RuntimeError("CloudPSS save did not produce a new model RID")
+    saved_model = _fetch_model_from_source(new_rid)
+    expected = _legacy_save_signature(model)
+    actual = _legacy_save_signature(saved_model)
+    if actual != expected:
+        raise RuntimeError("CloudPSS saved copy does not match the edited fault state")
     state["saved_copy_rid"] = new_rid
-    return {"new_rid": new_rid, "save_result": _json_safe(result), "memory_version": state["current_version"]}
+    return {
+        "new_rid": new_rid,
+        "save_result": _json_safe(result),
+        "memory_version": state["current_version"],
+        "verification": {"status": "verified", "method": "readback_fault_state"},
+    }
+
+
+def _legacy_save_signature(model: Any) -> dict[str, Any]:
+    """Compact, stable facts used to verify legacy in-memory save_copy."""
+    model_json = _json_safe(model.toJSON())
+    faults = []
+    for fault in _faults(model, model_json):
+        component_id = fault["id"]
+        _, _, component = _resolve_fault(model, model_json, component_id)
+        topology = _fault_ground_links(model, model_json, component_id)
+        channels = _fault_channel_links(model, model_json, component)
+        channel_ids = {item["id"] for values in channels.values() for item in values}
+        faults.append(
+            {
+                "id": component_id,
+                "name": fault["name"],
+                "args": {
+                    field: (
+                        _number(fault.get("args", {}).get(field))
+                        if field in {"fs", "fe", "ft", "Init", "chg"}
+                        else sorted(_reference_variants(str(_source(fault.get("args", {}).get(field)) or "")))
+                    )
+                    for field in FAULT_FIELDS
+                },
+                "targets": sorted(
+                    {str(item.get("component_id")) for item in topology["targets"] if item.get("component_id")}
+                ),
+                "gnds": sorted(
+                    {str(item.get("component_id")) for item in topology["gnds"] if item.get("component_id")}
+                ),
+                "channels": {
+                    field: sorted(
+                        {str(item["id"]): str(item["reference"]) for item in items}.items()
+                    )
+                    for field, items in channels.items()
+                },
+                "outputs": sorted(
+                    _output_channel_summaries(model_json, channel_ids),
+                    key=_canonical_json,
+                ),
+            }
+        )
+    return {"faults": sorted(faults, key=lambda item: item["id"])}
+
+
+def _preview_operation_details(model: Any, request: EditRequest) -> dict[str, Any]:
+    model_json = _json_safe(model.toJSON())
+    if request.operation == "update":
+        return _preview_update(model, model_json, request)
+    if request.operation == "configure_channel":
+        return _preview_configure_channel(model, model_json, request)
+    if request.operation == "create":
+        return _preview_create(model, model_json, request)
+    if request.operation == "delete":
+        return _preview_delete(model, model_json, request)
+    raise ValueError(f"Unsupported plan operation: {request.operation}")
+
+
+def _matching_faults_by_name(model: Any, name: str) -> list[dict[str, Any]]:
+    model_json = _json_safe(model.toJSON())
+    return [item for item in _faults(model, model_json) if item["name"] == name]
+
+
+def _execute_create_idempotent(state: dict[str, Any], request: EditRequest) -> dict[str, Any]:
+    """Create once, or reuse one already-equivalent named fault bundle."""
+    model = _ensure_model(state)
+    name = str(request.options.get("name") or request.target.get("name") or "").strip()
+    matches = _matching_faults_by_name(model, name) if name else []
+    if len(matches) > 1:
+        raise ValueError(f"Fault display name is ambiguous: {name!r}")
+    if not matches:
+        return _create_fault_bundle(model, request)
+
+    existing = matches[0]
+    expected_args = _normalized_create_changes(request.changes)
+    for field, expected in expected_args.items():
+        actual = existing.get("args", {}).get(field)
+        if field in {"fs", "fe", "Init", "chg", "ft"}:
+            if _number(actual) != _number(expected):
+                raise ValueError(f"Existing fault {name!r} has different {field}")
+        elif str(_source(actual)) != str(_source(expected)):
+            raise ValueError(f"Existing fault {name!r} has different {field}")
+
+    model_json = _json_safe(model.toJSON())
+    target_id, _, _ = _resolve_target_pin(model, model_json, request)
+    topology = _fault_ground_links(model, model_json, existing["id"])
+    actual_targets = {str(item.get("component_id")) for item in topology["targets"] if item.get("component_id")}
+    if target_id not in actual_targets:
+        raise ValueError(f"Existing fault {name!r} is connected to a different target")
+    channels = _fault_channel_links(model, model_json, existing)
+    if not channels["I"]:
+        raise ValueError(f"Existing fault {name!r} has no current channel")
+    gnd_ids = sorted({str(item.get("component_id")) for item in topology["gnds"] if item.get("component_id")})
+    return {
+        "fault_id": existing["id"],
+        "gnd_id": gnd_ids[0] if len(gnd_ids) == 1 else None,
+        "diagram_edges_added": [],
+        "target_pin_name": None,
+        "current_channel": copy.deepcopy(channels["I"][0]),
+        "voltage_channel": copy.deepcopy(channels["V"][0]) if channels["V"] else None,
+        "already_present": True,
+    }
+
+
+def _apply_plan_operation(state: dict[str, Any], request: EditRequest) -> dict[str, Any]:
+    if request.operation == "update":
+        return _execute_update(state, request)
+    if request.operation == "configure_channel":
+        return _execute_configure_channel(state, request)
+    if request.operation == "create":
+        return _execute_create_idempotent(state, request)
+    if request.operation == "delete":
+        return _execute_delete(state, request)
+    raise ValueError(f"Unsupported plan operation: {request.operation}")
+
+
+def _fault_effect(
+    model: Any,
+    fault_id: str,
+    *,
+    fields: set[str],
+    include_topology: bool,
+    channel_fields: set[str],
+) -> dict[str, Any]:
+    model_json = _json_safe(model.toJSON())
+    _, _, component = _resolve_fault(model, model_json, fault_id)
+    args = component.get("args") if isinstance(component.get("args"), dict) else {}
+    result: dict[str, Any] = {
+        "component_id": fault_id,
+        "fields": {field: copy.deepcopy(args.get(field)) for field in sorted(fields)},
+    }
+    channels = _fault_channel_links(model, model_json, component)
+    if channel_fields:
+        result["channels"] = {
+            field: [
+                {"id": item["id"], "reference": item["reference"]}
+                for item in channels[field]
+            ]
+            for field in sorted(channel_fields)
+        }
+        result["output_channel_component_ids"] = sorted(
+            {
+                item["id"]
+                for field in channel_fields
+                for item in channels[field]
+            }
+        )
+    if include_topology:
+        topology = _fault_ground_links(model, model_json, fault_id)
+        result["topology"] = {
+            "target_component_ids": sorted(
+                {str(item.get("component_id")) for item in topology["targets"] if item.get("component_id")}
+            ),
+            "ground_component_ids": sorted(
+                {str(item.get("component_id")) for item in topology["gnds"] if item.get("component_id")}
+            ),
+        }
+    return result
+
+
+def _expected_effects(model: Any, operations: list[EditRequest], results: list[dict[str, Any]]) -> dict[str, Any]:
+    touched: dict[str, dict[str, Any]] = {}
+    absent_components: set[str] = set()
+    absent_edges: set[str] = set()
+    absent_outputs: set[str] = set()
+    for request, changed in zip(operations, results):
+        if request.operation == "delete":
+            deleted = {str(changed.get("fault") or "")}
+            deleted.update(str(item) for item in changed.get("gnds", []))
+            deleted.update(str(item) for item in changed.get("channels", []))
+            deleted.discard("")
+            absent_components.update(deleted)
+            absent_edges.update(str(item) for item in changed.get("edges", []))
+            absent_outputs.update(str(item) for item in changed.get("channels", []))
+            for component_id in deleted:
+                touched.pop(component_id, None)
+            continue
+
+        fault_id = str(changed.get("fault_id") or changed.get("component_id") or "")
+        if not fault_id:
+            continue
+        item = touched.setdefault(
+            fault_id,
+            {"fields": set(), "include_topology": False, "channel_fields": set()},
+        )
+        if request.operation == "update":
+            item["fields"].update(request.changes)
+            item["channel_fields"].update(set(request.changes) & {"I", "V"})
+        elif request.operation == "configure_channel":
+            item["fields"].add(str(changed["field"]))
+            item["channel_fields"].add(str(changed["field"]))
+        elif request.operation == "create":
+            item["fields"].update(FAULT_FIELDS)
+            item["include_topology"] = True
+            item["channel_fields"].add("I")
+            if changed.get("voltage_channel"):
+                item["channel_fields"].add("V")
+
+    fault_effects = [
+        _fault_effect(
+            model,
+            fault_id,
+            fields=item["fields"],
+            include_topology=bool(item["include_topology"]),
+            channel_fields=item["channel_fields"],
+        )
+        for fault_id, item in sorted(touched.items())
+        if fault_id not in absent_components
+    ]
+    return {
+        "faults": fault_effects,
+        "absent_component_ids": sorted(absent_components),
+        "absent_edge_ids": sorted(absent_edges),
+        "absent_output_component_ids": sorted(absent_outputs),
+    }
+
+
+def _normalized_operation(value: EditRequest | dict[str, Any]) -> EditRequest:
+    request = value if isinstance(value, EditRequest) else EditRequest(**copy.deepcopy(value))
+    if request.operation not in PLAN_OPERATIONS:
+        raise ValueError(f"Unsupported plan operation: {request.operation}")
+    request.confirmation = None
+    if request.operation == "create":
+        request.changes = _normalized_create_changes(request.changes)
+    elif request.operation == "update":
+        request.changes = _normalize_update(request.changes)
+    return request
+
+
+def _plan_payload(plan: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: copy.deepcopy(value)
+        for key, value in plan.items()
+        if key not in {"plan_id", "plan_digest"}
+    }
+
+
+def _seal_plan(payload: dict[str, Any]) -> dict[str, Any]:
+    result = copy.deepcopy(payload)
+    digest = _fingerprint(result)
+    result["plan_id"] = f"fault-edit-{digest[:16]}"
+    result["plan_digest"] = digest
+    return result
+
+
+def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(plan, dict):
+        raise TypeError("edit plan must be a JSON object")
+    payload = _plan_payload(plan)
+    if payload.get("schema_version") != EDIT_PLAN_SCHEMA_VERSION:
+        raise ValueError("Unsupported edit plan schema version")
+    actual_digest = _fingerprint(payload)
+    if str(plan.get("plan_digest") or "") != actual_digest:
+        raise ValueError("Edit plan digest mismatch")
+    if str(plan.get("plan_id") or "") != f"fault-edit-{actual_digest[:16]}":
+        raise ValueError("Edit plan id mismatch")
+    return payload
+
+
+def preview_edit_plan_from_source(
+    source: str,
+    operations: list[EditRequest | dict[str, Any]],
+) -> dict[str, Any]:
+    """Return a JSON-safe plan; no live SDK Model is required by the next process."""
+    source = str(source or "").strip()
+    if not re.fullmatch(r"model/[^/]+/[^/]+", source):
+        raise ValueError("source must be model/<owner>/<model-key>")
+    requests = [_normalized_operation(item) for item in operations]
+    if not requests:
+        raise ValueError("At least one edit operation is required")
+    source_model = _fetch_model_from_source(source)
+    source_json = _json_safe(source_model.toJSON())
+    working = _clone_model(source_model)
+    state = _state({"original_rid": source, "memory_model": working})
+    previews: list[dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
+    for request in requests:
+        previews.append(_preview_operation_details(_ensure_model(state), request))
+        results.append(_apply_plan_operation(state, request))
+    expected = _expected_effects(_ensure_model(state), requests, results)
+    payload = {
+        "schema_version": EDIT_PLAN_SCHEMA_VERSION,
+        "status": "previewed",
+        "source": source,
+        "source_fingerprint": _fingerprint(source_json),
+        "operations": [
+            {
+                "operation": request.operation,
+                "target": copy.deepcopy(request.target),
+                "changes": copy.deepcopy(request.changes),
+                "options": copy.deepcopy(request.options),
+            }
+            for request in requests
+        ],
+        "previews": _json_safe(previews),
+        "expected_effects": expected,
+    }
+    return _seal_plan(payload)
+
+
+def _save_model_copy(model: Any, key: str) -> tuple[Any, str, Any]:
+    try:
+        from cloudpss import Model
+    except ImportError as exc:
+        raise RuntimeError("CloudPSS dependency is unavailable") from exc
+    copy_model = Model(copy.deepcopy(model.toJSON()))
+    result = copy_model.save(key)
+    new_rid = str(getattr(copy_model, "rid", "") or "").strip()
+    return copy_model, new_rid, result
+
+
+def _save_target(source: str, target: str) -> tuple[str, str]:
+    target = str(target or "").strip()
+    source_parts = source.split("/")
+    if re.fullmatch(r"model/[^/]+/[^/]+", target):
+        target_parts = target.split("/")
+        if target_parts[1] != source_parts[1]:
+            raise ValueError("target RID owner must match source RID owner")
+        expected_rid, key = target, target_parts[2]
+    elif target and "/" not in target:
+        key = target
+        expected_rid = f"model/{source_parts[1]}/{key}"
+    else:
+        raise ValueError("target_rid must be a model RID or a new model key")
+    if expected_rid == source:
+        raise ValueError("target RID must differ from source RID")
+    return expected_rid, key
+
+
+def _equivalent_field(field: str, expected: Any, actual: Any) -> bool:
+    if field in {"fs", "fe", "ft", "Init", "chg"}:
+        return _number(expected) == _number(actual)
+    if field in {"I", "V"}:
+        expected_text = str(_source(expected) or "").strip()
+        actual_text = str(_source(actual) or "").strip()
+        if not expected_text and not actual_text:
+            return True
+        return bool(_reference_variants(expected_text) & _reference_variants(actual_text))
+    return _json_safe(expected) == _json_safe(actual)
+
+
+def _verify_saved_effects(model: Any, expected: dict[str, Any]) -> dict[str, list[str]]:
+    critical: list[str] = []
+    warnings: list[str] = []
+    model_json = _json_safe(model.toJSON())
+    components = _components_from_model(model) or _cells(model_json)
+    cells = _cells(model_json)
+    outputs = _output_channel_entries(model_json)
+
+    for component_id in expected.get("absent_component_ids", []):
+        if component_id in components:
+            critical.append(f"component still exists: {component_id}")
+    for edge_id in expected.get("absent_edge_ids", []):
+        if edge_id in cells:
+            critical.append(f"diagram edge still exists: {edge_id}")
+    selected_outputs = {
+        component_id
+        for item in outputs
+        for component_id in item.get("component_ids", [])
+    }
+    for component_id in expected.get("absent_output_component_ids", []):
+        if component_id in selected_outputs:
+            critical.append(f"EMT output still references deleted channel: {component_id}")
+
+    for effect in expected.get("faults", []):
+        fault_id = str(effect.get("component_id") or "")
+        try:
+            _, _, component = _resolve_fault(model, model_json, fault_id)
+        except (KeyError, ValueError):
+            critical.append(f"expected fault is missing: {fault_id}")
+            continue
+        args = component.get("args") if isinstance(component.get("args"), dict) else {}
+        for field, expected_value in effect.get("fields", {}).items():
+            if not _equivalent_field(field, expected_value, args.get(field)):
+                critical.append(f"fault {fault_id} field mismatch: {field}")
+        if "topology" in effect:
+            topology = _fault_ground_links(model, model_json, fault_id)
+            actual_targets = sorted({str(item.get("component_id")) for item in topology["targets"] if item.get("component_id")})
+            actual_gnds = sorted({str(item.get("component_id")) for item in topology["gnds"] if item.get("component_id")})
+            if actual_targets != effect["topology"].get("target_component_ids", []):
+                critical.append(f"fault {fault_id} target topology mismatch")
+            if actual_gnds != effect["topology"].get("ground_component_ids", []):
+                critical.append(f"fault {fault_id} ground topology mismatch")
+        if "channels" in effect:
+            actual_channels = _fault_channel_links(model, model_json, component)
+            for field, expected_channels in effect["channels"].items():
+                expected_ids = sorted(str(item["id"]) for item in expected_channels)
+                actual_ids = sorted(str(item["id"]) for item in actual_channels[field])
+                if actual_ids != expected_ids:
+                    critical.append(f"fault {fault_id} channel mismatch: {field}")
+        for channel_id in effect.get("output_channel_component_ids", []):
+            if channel_id not in selected_outputs:
+                critical.append(f"EMT output is missing channel: {channel_id}")
+    return {"critical": critical, "warnings": warnings}
+
+
+def execute_edit_plan_from_source(plan: dict[str, Any], target_rid: str) -> dict[str, Any]:
+    """Replay one sealed plan transactionally, save a copy, then verify it by RID."""
+    payload = _validate_plan(plan)
+    source = str(payload["source"])
+    expected_rid, key = _save_target(source, target_rid)
+    source_model = _fetch_model_from_source(source)
+    actual_source_fingerprint = _fingerprint(_json_safe(source_model.toJSON()))
+    if actual_source_fingerprint != payload.get("source_fingerprint"):
+        return {
+            "status": "preview_stale",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "message": "The source model changed after preview; no edit was saved.",
+        }
+
+    working = _clone_model(source_model)
+    state = _state({"original_rid": source, "memory_model": working})
+    requests = [_normalized_operation(item) for item in payload.get("operations", [])]
+    results: list[dict[str, Any]] = []
+    try:
+        for request in requests:
+            results.append(_apply_plan_operation(state, request))
+        expected = _expected_effects(_ensure_model(state), requests, results)
+    except Exception as exc:
+        return {
+            "status": "operation_failed",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "message": str(exc),
+        }
+
+    try:
+        _, new_rid, save_result = _save_model_copy(_ensure_model(state), key)
+    except Exception as exc:
+        return {
+            "status": "save_verification_failed",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "new_rid": None,
+            "message": f"CloudPSS save failed: {exc}",
+        }
+    if not new_rid or new_rid == source:
+        return {
+            "status": "save_verification_failed",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "new_rid": new_rid or None,
+            "message": "CloudPSS save did not produce a new model RID.",
+        }
+    if new_rid != expected_rid:
+        return {
+            "status": "save_verification_failed",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "new_rid": new_rid,
+            "message": f"CloudPSS returned an unexpected model RID; expected {expected_rid}.",
+        }
+    try:
+        saved_model = _fetch_model_from_source(new_rid)
+        verification = _verify_saved_effects(saved_model, expected)
+    except Exception as exc:
+        return {
+            "status": "save_verification_failed",
+            "plan_id": plan["plan_id"],
+            "source": source,
+            "new_rid": new_rid,
+            "message": f"Saved model could not be read back: {exc}",
+        }
+    status = "verified_saved" if not verification["critical"] and not verification["warnings"] else "saved_with_warnings"
+    if verification["critical"]:
+        status = "save_verification_failed"
+    return {
+        "status": status,
+        "plan_id": plan["plan_id"],
+        "source": source,
+        "new_rid": new_rid,
+        "operations": _json_safe(results),
+        "verification": verification,
+        "save_result": _json_safe(save_result),
+    }
 
 
 def edit_model_from_context(request: EditRequest | dict[str, Any], session_state: dict[str, Any]) -> dict[str, Any]:
