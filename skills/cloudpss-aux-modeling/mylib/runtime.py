@@ -16,7 +16,7 @@ from .sdk_adapter import json_value, validate_rid
 
 SUPPORTED_OPERATIONS = {"initialize", "list_templates", "get_template_schema", "query",
                         "create", "update", "delete", "create_canvas", "delete_edges",
-                        "refresh_topology", "saveProject", "cancel_preview", "read_result"}
+                        "query_connections", "query_edges", "refresh_topology", "saveProject", "cancel_preview", "read_result"}
 CONFIRMATIONS = {"execute", "confirmed", "confirm", "确认执行", "确认"}
 PREVIEW_TTL = 1800
 OUTPUT_LIMIT = 12000
@@ -277,7 +277,8 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
         "query": {"identifier", "key", "label", "definition"},
         "create": {"template_key", "canvas", "key_prefix"},
         "update": {"identifier", "key", "label"}, "delete": {"identifier", "key", "label"},
-        "create_canvas": {"canvas"}, "delete_edges": set(), "refresh_topology": set(),
+        "create_canvas": {"canvas"}, "delete_edges": set(), "query_connections": {"identifier", "node", "pin"},
+        "query_edges": {"identifier", "view"}, "refresh_topology": set(),
         "saveProject": {"new_rid"}, "cancel_preview": set(),
         "read_result": {"result_id"},
     }
@@ -287,13 +288,13 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
     unknown = set(request.target) - targets[request.operation]
     if unknown:
         raise ValueError(f"Unsupported target fields for {request.operation}: {sorted(unknown)}")
-    allowed_options = {"offset", "limit", "fields"} if request.operation == "query" else (
+    allowed_options = {"offset", "limit", "fields"} if request.operation in {"query", "query_connections", "query_edges"} else (
         {"reset", "offset", "limit"} if request.operation == "initialize" else (
         {"fields"} if request.operation == "get_template_schema" else (
         {"offset", "limit"} if request.operation == "read_result" else set())))
     if set(request.options) - allowed_options:
         raise ValueError(f"Unsupported options for {request.operation}")
-    if request.operation in {"query", "initialize", "list_templates", "get_template_schema",
+    if request.operation in {"query", "initialize", "list_templates", "get_template_schema", "query_connections", "query_edges",
                              "refresh_topology", "cancel_preview", "read_result"} and request.changes:
         raise ValueError(f"{request.operation} does not accept changes")
     if request.operation in {"list_templates", "get_template_schema"}:
@@ -317,6 +318,13 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
         for key in ("toolbox", "memory_model", "previews", "current_version", "pending_preview", "result_pages", "connection_audit"):
             session_state.pop(key, None)
     sa = _toolbox(session_state)
+    if request.operation == "query_connections":
+        return sa.getConnections(request.target.get("identifier"), pin=request.target.get("pin"),
+                                 node=request.target.get("node"), offset=request.options.get("offset", 0),
+                                 limit=request.options.get("limit", 20))
+    if request.operation == "query_edges":
+        return sa.getDiagramEdges(request.target.get("identifier"), view=request.target.get("view", "original"),
+                                  offset=request.options.get("offset", 0), limit=request.options.get("limit", 20))
     if request.operation in {"query", "initialize"}:
         return _inspect_model(session_state, _identifier(request),
                                           offset=request.options.get("offset", 0), limit=request.options.get("limit", 20),

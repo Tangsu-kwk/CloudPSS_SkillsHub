@@ -1,0 +1,4643 @@
+{
+  "version": 1,
+  "source": "CloudPSS public GraphQL model.revision.pins/parameters",
+  "retrieved_at": "2026-09-08",
+  "templates": {
+    "_NewVoltageMeter": {
+      "definition": "model/CloudPSS/_NewVoltageMeter",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_NewVoltageMeter",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "dim": [
+            "Dim",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Dim": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Single Phase",
+              "key": "1",
+              "name": "Single Phase"
+            },
+            {
+              "condition": "",
+              "description": "Three Phase",
+              "key": "3",
+              "name": "Three Phase"
+            }
+          ],
+          "condition": "true",
+          "description": "量测维数",
+          "name": "Dimension",
+          "type": "choice"
+        },
+        "V": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压量测名称",
+          "dim": [
+            "Dim",
+            "1"
+          ],
+          "name": "Name for Voltage Signal [kV]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newChannel": {
+      "definition": "model/CloudPSS/_newChannel",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newChannel",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "description": "输入端口",
+          "dim": [
+            "Dim",
+            "1"
+          ],
+          "key": "0",
+          "name": "Input",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "波形名称<br/>此处输入输出通道的名称，该名称将在仿真结果弹出框的图例中显示，不填则由系统默认名称",
+          "name": "Channel Name",
+          "type": "text"
+        },
+        "Dim": {
+          "condition": "true",
+          "description": "通道数量<br/>连接该输出通道的输入信号的维数",
+          "interval": "closed",
+          "minimum": 1,
+          "name": "Dim. of Input Signal",
+          "type": "integer"
+        }
+      }
+    },
+    "_newBreaker_3p": {
+      "definition": "model/CloudPSS/_newBreaker_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newBreaker_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "三相断路器接线端口的正端",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "三相断路器接线端口的负端",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "1",
+          "name": "Pin -",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称 <br/>  此处输入三相断路器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Open": {
+          "condition": "true",
+          "description": "断路器断开电阻",
+          "interval": "left-open",
+          "minimum": 0,
+          "name": "Breaker OPEN Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "Close": {
+          "condition": "true",
+          "description": "断路器闭合电阻",
+          "interval": "left-open",
+          "minimum": 0,
+          "name": "Breaker Close Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "bot": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "at Zero-Crossing Time",
+              "key": "0",
+              "name": "at Zero-Crossing Time"
+            },
+            {
+              "condition": "",
+              "description": "at Any Time",
+              "key": "1",
+              "name": "at Any Time"
+            }
+          ],
+          "condition": "true",
+          "description": "断路器断开方式",
+          "name": "Breaker Open Type",
+          "type": "choice"
+        },
+        "ccl": {
+          "condition": "bot =~ 0",
+          "description": "最大允许断开电流",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Current Chopping Limit",
+          "type": "real",
+          "unit": "kA"
+        },
+        "ctrlType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "是否独立控制每相断路器",
+          "name": "Single Phase Operation",
+          "type": "choice"
+        },
+        "ctrlsignal": {
+          "condition": "ctrlType =~ 0",
+          "connection": "input",
+          "description": "三相断路器控制信号  <br/>  输入三相断路器控制信号名，比如 breakerCtrl",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "3 Phase Control Signal Name",
+          "type": "pinLike"
+        },
+        "ctrlsignal_A": {
+          "condition": "ctrlType =~ 1",
+          "connection": "input",
+          "description": "A相断路器控制信号  <br/>  输入 A 相断路器控制信号名，比如 ctrlsignal_A",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Phase A Control Signal Name",
+          "type": "pinLike"
+        },
+        "ctrlsignal_B": {
+          "condition": "ctrlType =~ 1",
+          "connection": "input",
+          "description": "B相断路器控制信号  <br/>  输入 B 相断路器控制信号名，比如 ctrlsignal_B",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Phase B Control Signal Name",
+          "type": "pinLike"
+        },
+        "ctrlsignal_C": {
+          "condition": "ctrlType =~ 1",
+          "connection": "input",
+          "description": "C相断路器控制信号  <br/>  输入 C 相断路器控制信号名，比如 ctrlsignal_C",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Phase C Control Signal Name",
+          "type": "pinLike"
+        },
+        "Init": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Open",
+              "key": "0",
+              "name": "Open"
+            },
+            {
+              "condition": "",
+              "description": "Close",
+              "key": "1",
+              "name": "Close"
+            }
+          ],
+          "condition": "ctrlType =~ 0",
+          "description": "断路器三相初始状态",
+          "name": "Initial Breaker Status (3 Phase)",
+          "type": "choice"
+        },
+        "Init_A": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Open",
+              "key": "0",
+              "name": "Open"
+            },
+            {
+              "condition": "",
+              "description": "Close",
+              "key": "1",
+              "name": "Close"
+            }
+          ],
+          "condition": "ctrlType =~ 1",
+          "description": "断路器A相初始状态",
+          "name": "Initial Breaker Status (Phase A)",
+          "type": "choice"
+        },
+        "Init_B": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Open",
+              "key": "0",
+              "name": "Open"
+            },
+            {
+              "condition": "",
+              "description": "Close",
+              "key": "1",
+              "name": "Close"
+            }
+          ],
+          "condition": "ctrlType =~ 1",
+          "description": "断路器B相初始状态",
+          "name": "Initial Breaker Status (Phase B)",
+          "type": "choice"
+        },
+        "Init_C": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Open",
+              "key": "0",
+              "name": "Open"
+            },
+            {
+              "condition": "",
+              "description": "Close",
+              "key": "1",
+              "name": "Close"
+            }
+          ],
+          "condition": "ctrlType =~ 1",
+          "description": "断路器C相初始状态",
+          "name": "Initial Breaker Status (Phase C)",
+          "type": "choice"
+        },
+        "I": {
+          "condition": "true",
+          "connection": "output",
+          "description": "断路器三相电流  <br/>  此处输入断路器三相电流量测信号的标签，如 I，其维数为 3*1",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Breaker Current [kA]",
+          "type": "pinLike"
+        },
+        "V": {
+          "condition": "true",
+          "connection": "output",
+          "description": "断路器三相电压  <br/> 此处输入断路器三相电压量测信号的标签，如 V，其维数为 3*1",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Breaker Voltage [kV]",
+          "type": "pinLike"
+        },
+        "Status": {
+          "condition": "true",
+          "connection": "output",
+          "description": "断路器三相状态  <br/>  此处输入断路器开关状态信号的标签，如 S，其维数为 3*1",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Breaker Status",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newDropGen": {
+      "definition": "model/CloudPSS/_newDropGen",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newDropGen",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "输出端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "Output",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入陷落发生器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "T1": {
+          "condition": "true",
+          "description": "陷落时刻T1",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Drop Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "T2": {
+          "condition": "true",
+          "description": "恢复时刻T2(>T1)",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Recover Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "INIT": {
+          "condition": "true",
+          "description": "初始值",
+          "interval": "closed",
+          "name": "Initial Value",
+          "type": "real",
+          "unit": null
+        },
+        "Drop": {
+          "condition": "true",
+          "description": "陷落值<br/>信号在陷落时段的输出值",
+          "interval": "closed",
+          "name": "Drop Value",
+          "type": "real",
+          "unit": null
+        }
+      }
+    },
+    "_newShuntLC_3p": {
+      "definition": "model/CloudPSS/_newShuntLC_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newShuntLC_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "并联电容/电抗器的接线端口",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入并联电容/电抗器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "freq": {
+          "condition": "true",
+          "description": "额定频率<br/>并联电容/电抗器的额定频率",
+          "interval": "closed",
+          "minimum": 1e-05,
+          "name": "Rated Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "v": {
+          "condition": "true",
+          "description": "额定线电压有效值<br/>并联电容/电抗器的额定线电压有效值",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "s": {
+          "condition": "true",
+          "description": "投入容量<br/>并联电容/电抗器的投入容量（电容为负，电抗为正）",
+          "interval": "closed",
+          "name": "Input Capacity",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "NIM": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "梯形积分方法",
+              "key": "1",
+              "name": "Trapezoidal rule"
+            },
+            {
+              "condition": "",
+              "description": "根匹配方法",
+              "key": "2",
+              "name": "Root matching"
+            },
+            {
+              "condition": "",
+              "description": "含零点补偿根匹配",
+              "key": "3",
+              "name": "RM with extra zero"
+            }
+          ],
+          "condition": "true",
+          "description": "数值积分方法选择（仅对移频电磁暂态仿真有效）",
+          "name": "Numerical Integration Method",
+          "type": "choice"
+        },
+        "I": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相电流<br/>此处输入并联电容/电抗器三相电流量测信号的标签（3×1维），如 Iabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "Irms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电流均方根值<br/>此处输入并联电容/电抗器电流有效值量测信号的标签（1×1维），如 Irms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Current [kA]",
+          "type": "pinLike"
+        },
+        "P": {
+          "condition": "true",
+          "connection": "output",
+          "description": "有功功率<br/>此处输入并联电容/电抗器有功功率量测信号的标签（1×1维），如 P",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power [MW]",
+          "type": "pinLike"
+        },
+        "Q": {
+          "condition": "true",
+          "connection": "output",
+          "description": "无功功率<br/>此处输入并联电容/电抗器无功功率量测信号的标签（1×1维），如 Q",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power [MVar]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newConstant": {
+      "definition": "model/CloudPSS/_newConstant",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newConstant",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "输出端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "Output",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入常量输入元件的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Value": {
+          "condition": "true",
+          "description": "常数<br/>输出常数的数值",
+          "interval": "closed",
+          "name": "Real Constant Value",
+          "type": "real",
+          "unit": null
+        }
+      }
+    },
+    "_newFaultResistor_3p": {
+      "definition": "model/CloudPSS/_newFaultResistor_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newFaultResistor_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "电阻正端（参考方向）",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "电阻负端（参考方向）",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "1",
+          "name": "Pin -",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称  <br/> 此处输入故障电阻的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Init": {
+          "condition": "true",
+          "description": "初始电阻",
+          "interval": "left-open",
+          "minimum": 0,
+          "name": "Initial Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "fs": {
+          "condition": "true",
+          "description": "故障开始时刻",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Fault Start Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "fe": {
+          "condition": "true",
+          "description": "故障结束时刻",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Fault End Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "chg": {
+          "condition": "true",
+          "description": "故障期间电阻",
+          "interval": "closed",
+          "name": "Fault Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "ft": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No Fault",
+              "key": "0",
+              "name": "No Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase A Fault",
+              "key": "1",
+              "name": "Phase A Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase B Fault",
+              "key": "2",
+              "name": "Phase B Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase AB Fault",
+              "key": "3",
+              "name": "Phase AB Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase C Fault",
+              "key": "4",
+              "name": "Phase C Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase AC Fault",
+              "key": "5",
+              "name": "Phase AC Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase BC Fault",
+              "key": "6",
+              "name": "Phase BC Fault"
+            },
+            {
+              "condition": "",
+              "description": "Phase ABC Fault",
+              "key": "7",
+              "name": "Phase ABC Fault"
+            }
+          ],
+          "condition": "true",
+          "description": "故障类型  <br/> 选择故障的类型（A相、B相、C相、AB相、BC相、AC相、ABC相）",
+          "name": "Fault Type",
+          "type": "choice"
+        },
+        "fct": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "at Zero-Crossing Time",
+              "key": "0",
+              "name": "at Zero-Crossing Time"
+            },
+            {
+              "condition": "",
+              "description": "at Any Time",
+              "key": "1",
+              "name": "at Any Time"
+            }
+          ],
+          "condition": "true",
+          "description": "故障清除时刻  <br/>  选择故障清除时刻为过零时刻或任意时刻",
+          "name": "Fault Clear Type",
+          "type": "choice"
+        },
+        "I": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Branch Current [kA]",
+          "type": "pinLike"
+        },
+        "V": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相电阻故障电压 <br/> 此处输入电阻端电压量测信号的标签（3×1维），比如Vabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Branch Voltage [kV]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "GND": {
+      "definition": "model/CloudPSS/GND",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/GND",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "data": "real",
+          "description": "接地端",
+          "dim": [
+            "0",
+            "0"
+          ],
+          "key": "0",
+          "name": "GND",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称 <br/> 此处输入接地点的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        }
+      }
+    },
+    "_newACVoltageSource_3p": {
+      "definition": "model/CloudPSS/_newACVoltageSource_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newACVoltageSource_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "Grnd =~ 0",
+          "connection": "electrical",
+          "description": "电压源的负端（参考方向），仅当电压源非接地时有效",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin -",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "电压源的正端（参考方向）",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "1",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入三相交流电压源的名称（可缺省）",
+          "name": "Source Name",
+          "type": "text"
+        },
+        "Grnd": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "电压源中性点是否接地？<br/>选择“Yes”或“No”以使电压源负端接地或不接地",
+          "name": "Is Star Point Grounded?",
+          "type": "choice"
+        },
+        "Vm": {
+          "condition": "true",
+          "description": "线电压有效值<br/>电压源额定线电压有效值",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "Func": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Sine",
+              "key": "0",
+              "name": "Sine"
+            },
+            {
+              "condition": "",
+              "description": "Cosine",
+              "key": "1",
+              "name": "Cosine"
+            }
+          ],
+          "condition": "true",
+          "description": "函数类型<br/>选择电压源为正弦表达式或余弦表达式",
+          "name": "Function Type",
+          "type": "choice"
+        },
+        "Ph": {
+          "condition": "true",
+          "description": "初始相位<br/>电压源在t=0时的相位",
+          "interval": "closed",
+          "maximum": 360,
+          "minimum": -360,
+          "name": "Initial Phase",
+          "type": "real",
+          "unit": "Deg"
+        },
+        "f": {
+          "condition": "true",
+          "description": "频率<br/>电压源额定频率",
+          "interval": "closed",
+          "minimum": 1e-05,
+          "name": "Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "R": {
+          "condition": "true",
+          "description": "内阻<br/>电压源额定内阻",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "Init": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Linear Ramp",
+              "key": "0",
+              "name": "Linear Ramp"
+            },
+            {
+              "condition": "",
+              "description": "Real Pole Ramp",
+              "key": "1",
+              "name": "Real Pole Ramp"
+            }
+          ],
+          "condition": "true",
+          "description": "启动方式<br/>选择电压源启动发式为“Linear Ramp”或“Real Pole Ramp”",
+          "name": "Start-up Type",
+          "type": "choice"
+        },
+        "Tramp": {
+          "condition": "Init =~ 0",
+          "description": "启动时间<br/>输入斜坡启动时间，仅当“启动方式\"项为“Linear Ramp”时生效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Voltage Ramp Up Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Tconstant": {
+          "condition": "Init =~ 1",
+          "description": "启动时间常数<br/>输入极点时间常数，仅当“启动方式”项为“RealPoleRamp”时生效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Voltage Input Time Constant",
+          "type": "real",
+          "unit": "s"
+        },
+        "Fault": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "是否为故障电压源<br/>选择“Yes”或“No”以选择是否为故障电压源",
+          "name": "Is This a Fault Source ?",
+          "type": "choice"
+        },
+        "Tfs": {
+          "condition": "Fault =~ 1",
+          "description": "故障开始时间<br/>故障开始的时间，仅当“是否为故障电压源”项选择\"Yes\"时有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Fault Start Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Tfe": {
+          "condition": "Fault =~ 1",
+          "description": "故障结束时间<br/>故结束的时间，仅当“是否为故障电压源”项选择\"Yes\"时有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Fault End Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Dr": {
+          "condition": "Fault =~ 1",
+          "description": "故障电压降<br/>故障时间电压的标幺值，仅当“是否为故障电压源”项选择\"Yes\"时有效",
+          "interval": "closed",
+          "name": "Drop Ratio",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "BusType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "PQ Bus",
+              "key": "0",
+              "name": "PQ Bus"
+            },
+            {
+              "condition": "",
+              "description": "PV Bus",
+              "key": "1",
+              "name": "PV Bus"
+            },
+            {
+              "condition": "",
+              "description": "Slack Bus",
+              "key": "2",
+              "name": "Slack Bus"
+            }
+          ],
+          "condition": "true",
+          "description": "节点类型<br/>用于潮流计算功能，指定电源所在母线的节点类型",
+          "name": "Bus Type",
+          "type": "choice"
+        },
+        "pf_P": {
+          "condition": "BusType =~ 0 || BusType =~ 1",
+          "description": "节点注入有功功率<br/>用于潮流计算功能，对 PV、PQ 节点有效",
+          "interval": "closed",
+          "name": "Injected Active Power",
+          "type": "real",
+          "unit": "MW"
+        },
+        "pf_Q": {
+          "condition": "BusType =~ 0",
+          "description": "节点注入无功功率<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "name": "Injected Reactive Power",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "pf_V": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "母线电压幅值<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Bus Voltage Magnitude",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Theta": {
+          "condition": "BusType =~ 2",
+          "description": "母线电压相位<br/>用于潮流计算功能，对平衡节点有效",
+          "interval": "closed",
+          "name": "Bus Voltage Angle",
+          "type": "real",
+          "unit": "Deg"
+        },
+        "pf_Vmin": {
+          "condition": "BusType =~ 0",
+          "description": "母线电压下限<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Lower Voltage Limit",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Vmax": {
+          "condition": "BusType =~ 0",
+          "description": "母线电压上限<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Upper Voltage Limit",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Qmin": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "无功功率下限<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "name": "Lower Reactive Power Limit",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "pf_Qmax": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "无功功率上限<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "name": "Upper Reactive Power Limit",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "V": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压源端电压<br/>此处输入电压源电压量测信号的标签（3×1维），如 Vabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Source Voltage Vector [kV]",
+          "type": "pinLike"
+        },
+        "I": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压源输出电流<br/>此处输入电压源输出电流量测信号的标签（3×1维），如 Iabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Source Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "Vrms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压源电压均方根值<br/>此处输入电压源电压均方根值量测信号的标签（1×1维），如 Vrms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Source Voltage [kV]",
+          "type": "pinLike"
+        },
+        "Irms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压源电流均方根值<br/>此处输入电压源电流均方根值量测信号的标签（1×1维），如 Irms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Source Current [kA]",
+          "type": "pinLike"
+        },
+        "P": {
+          "condition": "true",
+          "connection": "output",
+          "description": "有功功率<br/>此处输入电压源有功功率量测信号的标签（1×1维），如 P",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power [MW]",
+          "type": "pinLike"
+        },
+        "Q": {
+          "condition": "true",
+          "connection": "output",
+          "description": "无功功率<br/>此处输入电压源无功功率量测信号的标签（1×1维），如 Q",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power [MVar]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newBus_3p": {
+      "definition": "model/CloudPSS/_newBus_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newBus_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "母线接线端口，可以作为多个三相元件的连接点",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "母线名称<br/>此处输入三相交流母线的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Freq": {
+          "condition": "true",
+          "description": "额定频率<br/>母线的额定频率，用于交流系统快速启动，可缺省",
+          "interval": "closed",
+          "minimum": 1e-05,
+          "name": "Rated Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "RampingTime": {
+          "condition": "true",
+          "description": "斜坡启动时间(仅初始化用)<br/>母线电压以斜坡函数方式爬升的时间，用于交流系统快速启动，可缺省",
+          "interval": "closed",
+          "name": "Ramping Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Theta": {
+          "condition": "true",
+          "description": "母线电压相位<br/>母线电压相位（A相相电压），用于交流系统快速启动，可缺省",
+          "interval": "closed",
+          "name": "Voltage Angle",
+          "type": "real",
+          "unit": "Deg"
+        },
+        "V": {
+          "condition": "true",
+          "description": "母线电压幅值<br/>母线线电压的幅值，用于交流系统快速启动，可缺省",
+          "interval": "closed",
+          "name": "Voltage Magnitude (L-L, RMS)",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "VBase": {
+          "condition": "true",
+          "description": "母线电压基值<br/>母线的电压基准值，用于交流系统快速启动，可缺省",
+          "interval": "closed",
+          "name": "Base Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "Vabc": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相电压<br/>此处输母线三相相电压量测信号的标（3×1维），如 Vabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Voltage Vector [kV]",
+          "type": "pinLike"
+        },
+        "Vrms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压均方根值<br/>此处输母线电压均方根值量测信号的标签（1×1维），如 Vrms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Voltage [kV]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newExpLoad_3p": {
+      "definition": "model/CloudPSS/_newExpLoad_3p",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newExpLoad_3p",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "静态负载接线端",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin +",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入静态负载的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "v": {
+          "condition": "true",
+          "description": "线电压有效值<br/>标称负载线电压有效值$V_{N}$",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "f": {
+          "condition": "true",
+          "description": "额定频率<br/>额定频率$f_{N}$",
+          "interval": "closed",
+          "minimum": 1e-05,
+          "name": "Rated Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "p": {
+          "condition": "true",
+          "description": "额定有功功率<br/>额定有功功率$P_{N}$",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Active Power (3 Phase)",
+          "type": "real",
+          "unit": "MW"
+        },
+        "q": {
+          "condition": "true",
+          "description": "额定无功功率，感性负荷为正<br/>额定无功功率$Q_{N}$",
+          "interval": "closed",
+          "name": "Rated Reactive Power (3 Phase)",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "NP": {
+          "condition": "true",
+          "description": "有功功率-电压指数<br/>有功功率-电压指数$NP$",
+          "interval": "closed",
+          "maximum": 5,
+          "minimum": -5,
+          "name": "Voltage Index for P",
+          "type": "real",
+          "unit": null
+        },
+        "NQ": {
+          "condition": "true",
+          "description": "无功功率-电压指数<br/>无功功率-电压指数$NQ$",
+          "interval": "closed",
+          "maximum": 5,
+          "minimum": -5,
+          "name": "Voltage Index for Q",
+          "type": "real",
+          "unit": null
+        },
+        "KPF": {
+          "condition": "true",
+          "description": "有功功率-频率系数<br/>有功功率-频率系数$K_{PF}$",
+          "interval": "closed",
+          "maximum": 5,
+          "minimum": -5,
+          "name": "Freq Index for P",
+          "type": "real",
+          "unit": null
+        },
+        "KQF": {
+          "condition": "true",
+          "description": "无功功率-频率系数<br/>无功功率-频率系数$K_{QF}$",
+          "interval": "closed",
+          "maximum": 5,
+          "minimum": -5,
+          "name": "Freq Index for Q",
+          "type": "real",
+          "unit": null
+        },
+        "Vi": {
+          "condition": "true",
+          "description": "初始电压幅值，由潮流计算决定<br/>初始电压幅值，可以由潮流程序修改，与其相连的母线电压一致。",
+          "interval": "closed",
+          "maximum": 99999,
+          "minimum": 0,
+          "name": "Initial Voltage",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "NIM": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "梯形积分方法",
+              "key": "1",
+              "name": "Trapezoidal rule"
+            },
+            {
+              "condition": "",
+              "description": "根匹配方法",
+              "key": "2",
+              "name": "Root matching"
+            }
+          ],
+          "condition": "true",
+          "description": "数值积分方法选择（仅对移频电磁暂态仿真有效）",
+          "name": "Numerical Integration Method",
+          "type": "choice"
+        },
+        "Iname": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相电流<br/>此处输入静态负载电流量测信号的标签（3×1维），如 Iabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "Irmsname": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电流均方根值<br/>此处输入静态负载电流有效值量测信号的标签（1×1维），如 Irms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Current [kA]",
+          "type": "pinLike"
+        },
+        "Pname": {
+          "condition": "true",
+          "connection": "output",
+          "description": "有功功率<br/>此处输入静态负载有功功率量测信号的标签（1×1维），如 P",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power [MW]",
+          "type": "pinLike"
+        },
+        "Qname": {
+          "condition": "true",
+          "connection": "output",
+          "description": "无功功率<br/>此处输入静态负载无功功率量测信号的标签（1×1维），如 Q",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power [MVar]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newStepGen": {
+      "definition": "model/CloudPSS/_newStepGen",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newStepGen",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "输出端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "Output",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入阶跃发生器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "V0": {
+          "condition": "true",
+          "description": "初始值<br/>信号输出的初始值",
+          "interval": "closed",
+          "name": "Initial Value",
+          "type": "real",
+          "unit": null
+        },
+        "V1": {
+          "condition": "true",
+          "description": "终值<br/>阶跃发生后，信号的输出值",
+          "interval": "closed",
+          "name": "Final Value",
+          "type": "real",
+          "unit": null
+        },
+        "Time": {
+          "condition": "true",
+          "description": "阶跃时间<br/>阶跃发生的时间",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Step Time",
+          "type": "real",
+          "unit": "s"
+        }
+      }
+    },
+    "_newTransformer_3p2w": {
+      "definition": "model/CloudPSS/_newTransformer_3p2w",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newTransformer_3p2w",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "变压器绕组1接线端",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Pin #1",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "变压器绕组2接线端",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "1",
+          "name": "Pin #2",
+          "visible": true,
+          "verified": true
+        },
+        "2": {
+          "condition": "Tap =~ 1",
+          "connection": "input",
+          "data": "real",
+          "description": "变压器绕组1的分接头，输入变比控制信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "2",
+          "name": "Tap",
+          "visible": true,
+          "verified": true
+        },
+        "3": {
+          "condition": "Tap =~ 2",
+          "connection": "input",
+          "data": "real",
+          "description": "变压器绕组2的分接头，输入变比控制信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "3",
+          "name": "Tap",
+          "visible": true,
+          "verified": true
+        },
+        "4": {
+          "condition": "YD1 =~ 0",
+          "connection": "electrical",
+          "description": "一次侧中性点接线端（绕组1的连接类型为星形时有效）",
+          "key": "4",
+          "name": "Primary Neutral Point",
+          "visible": false,
+          "verified": true
+        },
+        "5": {
+          "condition": "YD2 =~ 0",
+          "connection": "electrical",
+          "description": "二次侧中性点接线端（绕组2的连接类型为星形时有效）",
+          "key": "5",
+          "name": "Secondary Neutral Point",
+          "visible": false,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入三相双绕组变压器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Tmva": {
+          "condition": "true",
+          "description": "额定容量<br/>变压器每侧绕组的额定容量$S_N$（所填变压器参数的功率基值）",
+          "interval": "closed",
+          "minimum": 1e-06,
+          "name": "Rated Power",
+          "type": "real",
+          "unit": "MVA"
+        },
+        "V1": {
+          "condition": "true",
+          "description": "绕组#1额定线电压有效值<br/>绕组1的额定线电压有效值$V_{1N}$（所填变压器参数的电压基值）",
+          "interval": "closed",
+          "minimum": 0.0001,
+          "name": "Winding #1 Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "V2": {
+          "condition": "true",
+          "description": "绕组#2额定线电压有效值<br/>绕组2的额定线电压有效值$V_{2N}$（所填变压器参数的电压基值）",
+          "interval": "closed",
+          "minimum": 0.0001,
+          "name": "Winding #2 Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "f": {
+          "condition": "true",
+          "description": "额定频率<br/>变压器的额定频率$f_n$",
+          "interval": "closed",
+          "minimum": 0.0001,
+          "name": "Base Operation Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "YD1": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Y",
+              "key": "0",
+              "name": "Y"
+            },
+            {
+              "condition": "",
+              "description": "Delta",
+              "key": "1",
+              "name": "Delta"
+            }
+          ],
+          "condition": "true",
+          "description": "绕组#1连接类型<br/>选择绕组1的连接类型为星形(Y)或三角形(Delta)",
+          "name": "Winding #1 Type",
+          "type": "choice"
+        },
+        "YD2": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Y",
+              "key": "0",
+              "name": "Y"
+            },
+            {
+              "condition": "",
+              "description": "Delta",
+              "key": "1",
+              "name": "Delta"
+            }
+          ],
+          "condition": "true",
+          "description": "绕组#2连接类型<br/>选择绕组2的连接类型为星形(Y)或三角形(Delta)",
+          "name": "Winding #2 Type",
+          "type": "choice"
+        },
+        "Lead": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Lags 30°",
+              "key": "1",
+              "name": "Lags 30°"
+            },
+            {
+              "condition": "",
+              "description": "Leads 30°",
+              "key": "2",
+              "name": "Leads 30°"
+            }
+          ],
+          "condition": "to_number(YD1) !~ to_number(YD2)",
+          "description": "Delta绕组连接方式<br/>选择Delta连接绕组电压超前或滞后Y连接绕组电压30°，仅当有绕组为三角形连接时有效。",
+          "name": "Delta Lags or Leads Y",
+          "type": "choice"
+        },
+        "Rn1": {
+          "condition": "YD1 =~ 0",
+          "description": "绕组#1中性点电阻<br/>绕组1的中性点接地电阻$r_{1n}$，仅在星形连接下有效",
+          "interval": "closed",
+          "minimum": 1e-06,
+          "name": "Winding #1 Neutral Point Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "Rn2": {
+          "condition": "YD2 =~ 0",
+          "description": "绕组#2中性点电阻<br/>绕组2的中性点接地电阻$r_{2n}$，仅在星形连接下有效",
+          "interval": "closed",
+          "minimum": 1e-06,
+          "name": "Winding #2 Neutral Point Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "Xl": {
+          "condition": "true",
+          "description": "正序漏电抗<br/>变压器的等值漏电抗$X_T$  ，可由变压器短路实验或变压器铭牌得出",
+          "interval": "closed",
+          "minimum": 1.0000000000000001e-307,
+          "name": "Positive Sequence Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Rl": {
+          "condition": "true",
+          "description": "正序漏电阻<br/>变压器的等值漏电阻$R_T$ ，可由变压器短路实验或变压器铭牌得出",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Positive Sequence Leakage Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Gm": {
+          "condition": "true",
+          "description": "励磁电导<br/>变压器励磁电导$G_M$，可由变压器空载实验或变压器铭牌得出",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Magnetization Conductance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Im1": {
+          "condition": "true",
+          "description": "空载励磁电流<br/>变压器器空载励磁电流$I_M$，可由变压器空载实验或变压器铭牌得出",
+          "interval": "closed",
+          "maximum": 1000,
+          "minimum": 0.0001,
+          "name": "Magnetizing Current",
+          "type": "real",
+          "unit": "%"
+        },
+        "Tap": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "None",
+              "key": "0",
+              "name": "None"
+            },
+            {
+              "condition": "",
+              "description": "On Winding #1",
+              "key": "1",
+              "name": "On Winding #1"
+            },
+            {
+              "condition": "",
+              "description": "On Winding #2",
+              "key": "2",
+              "name": "On Winding #2"
+            }
+          ],
+          "condition": "true",
+          "description": "变压器分接头选择<br/>选择变压器分接头位置（无/绕组1/绕组2）",
+          "name": "Tap Changer",
+          "type": "choice"
+        },
+        "InitTap": {
+          "condition": "(Tap =~ 1) || (Tap =~ 2)",
+          "description": "初始分接头档位<br/>填写变压器初始的分接头档位下的标幺值变比",
+          "interval": "closed",
+          "minimum": 0.01,
+          "name": "Initial Tap Ratio",
+          "type": "real",
+          "unit": null
+        },
+        "NIM": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "梯形积分方法",
+              "key": "1",
+              "name": "Trapezoidal rule"
+            },
+            {
+              "condition": "",
+              "description": "根匹配方法",
+              "key": "2",
+              "name": "Root matching"
+            }
+          ],
+          "condition": "true",
+          "description": "数值积分方法选择（仅对移频电磁暂态仿真有效）",
+          "name": "Numerical Integration Method",
+          "type": "choice"
+        },
+        "Enab": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "考虑饱和特性?<br/>选择“是”或“否”以开启或关闭铁芯饱和特性的建模",
+          "name": "Saturation Enabled",
+          "type": "choice"
+        },
+        "Sat": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Winding #1",
+              "key": "0",
+              "name": "Winding #1"
+            },
+            {
+              "condition": "",
+              "description": "Winding #2",
+              "key": "1",
+              "name": "Winding #2"
+            }
+          ],
+          "condition": "Enab =~ 1",
+          "description": "励磁绕组位置<br/>选择励磁绕组添加的位置，考虑饱和特性时，饱和电流由该位置注入",
+          "name": "Place Saturation on",
+          "type": "choice"
+        },
+        "Xac": {
+          "condition": "Enab =~ 1",
+          "description": "空心电抗<br/>变压器空心电抗，通常大约是等值漏电抗的两倍",
+          "interval": "closed",
+          "maximum": 10,
+          "minimum": 0.001,
+          "name": "Air Core Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Tdc": {
+          "condition": "Enab =~ 1",
+          "description": "涌流衰减时间<br/>变压器励磁涌流的衰减时间常数",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rush Decay Time Constant",
+          "type": "real",
+          "unit": "s"
+        },
+        "Xknee": {
+          "condition": "Enab =~ 1",
+          "description": "拐点电压<br/>对应于饱和曲线拐点的电压",
+          "interval": "closed",
+          "minimum": 1.0000000000000001e-307,
+          "name": "Knee Voltage",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Txk": {
+          "condition": "Enab =~ 1",
+          "description": "启动时间<br/>为防止启动不稳定，需要在一段时间内不计算或限制计算磁链值，该时间即为启动时间",
+          "interval": "closed",
+          "maximum": 1000000,
+          "minimum": 0,
+          "name": "Time to Release Flux Clipping",
+          "type": "real",
+          "unit": "s"
+        },
+        "I1": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组1三相线电流<br/>此处输入变压器绕组1三相线电流量测信号的标签（3×1维），如 I1ll",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "Winding #1 Line Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "I1p": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组1三相相电流<br/>此处输入变压器绕组1三相相电流量测信号的标签（3×1维），如 I1lg",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "Winding #1 Phase Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "I2": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组2三相线电流<br/>此处输入变压器绕组2三相线电流量测信号的标签（3×1维），如 I2ll",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "Winding #2 Line Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "I2p": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组2三相相电流<br/>此处输入变压器绕组2三相相电流量测信号的标签（3×1维），如 I2lg",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "Winding #2 Phase Current Vector [kA]",
+          "type": "pinLike"
+        },
+        "I1rms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组1线电流均方根值<br/>此处输入变压器绕组1电流有效值量测信号的标签（1×1维），如 I1rms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #1 RMS Line Current [kA]",
+          "type": "pinLike"
+        },
+        "I2rms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组2线电流均方根值<br/>此处输入变压器绕组2电流有效值量测信号的标签（1×1维），如 I2rms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #2 RMS Line Current [kA]",
+          "type": "pinLike"
+        },
+        "P1": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组1有功功率<br/>此处输入变压器绕组1有功功率量测信号的标签（1×1维），如 P1",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #1 Active Power [MW]",
+          "type": "pinLike"
+        },
+        "Q1": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组1无功功率<br/>此处输入变压器绕组1无功功率量测信号的标签（1×1维），如 Q1",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #1 Reactive Power [MVar]",
+          "type": "pinLike"
+        },
+        "P2": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组2有功功率<br/>此处输入变压器绕组2有功功率量测信号的标签（1×1维），如 P2",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #2 Active Power [MW]",
+          "type": "pinLike"
+        },
+        "Q2": {
+          "condition": "true",
+          "connection": "output",
+          "description": "绕组2无功功率<br/>此处输入变压器绕组2无功功率量测信号的标签（1×1维），如 Q2",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Winding #2 Reactive Power [MVar]",
+          "type": "pinLike"
+        },
+        "Im": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相励磁电流<br/>此处输入变压器励磁电流量测信号的标签（3×1维），如 Im",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Magnetizing Current [kA]",
+          "type": "pinLike"
+        },
+        "Flux": {
+          "condition": "true",
+          "connection": "output",
+          "description": "三相磁链<br/>此处输入变压器磁链量测信号的标签（3×1维），如 Flux",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Flux Linkage [KWb-N]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_PSASP_AVR_11to12": {
+      "definition": "model/CloudPSS/_PSASP_AVR_11to12",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_PSASP_AVR_11to12",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "电机端电压参考值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "Vref",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "电力系统稳定器输出",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "1",
+          "name": "Vs",
+          "visible": true,
+          "verified": true
+        },
+        "2": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "发电机端电压标幺值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "2",
+          "name": "VT",
+          "visible": true,
+          "verified": true
+        },
+        "3": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "励磁电压初始值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "3",
+          "name": "Ef0",
+          "visible": true,
+          "verified": true
+        },
+        "4": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "励磁电流",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "4",
+          "name": "If",
+          "visible": true,
+          "verified": true
+        },
+        "5": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "使能信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "5",
+          "name": "S2M",
+          "visible": true,
+          "verified": true
+        },
+        "6": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "电机端电压稳态值（由量测值取采样保持得到）",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "6",
+          "name": "Vref0",
+          "visible": true,
+          "verified": true
+        },
+        "7": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "励磁输出电压",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "7",
+          "name": "Ef",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Model": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "AVR 11",
+              "key": "11",
+              "name": "AVR 11"
+            },
+            {
+              "condition": "",
+              "description": "AVR 12",
+              "key": "12",
+              "name": "AVR 12"
+            }
+          ],
+          "condition": "true",
+          "description": "模型类型选择",
+          "name": "Model Type",
+          "type": "choice"
+        },
+        "PSSPos": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Before Serial Correction",
+              "key": "0",
+              "name": "Before Serial Correction"
+            },
+            {
+              "condition": "",
+              "description": "After Serial Correction",
+              "key": "1",
+              "name": "After Serial Correction"
+            }
+          ],
+          "condition": "true",
+          "description": "选择PSS反馈信号Vs的输入位置",
+          "name": "PSS Signal Position",
+          "type": "choice"
+        },
+        "OverExcitationEnabled": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "过励限制是否接入",
+          "name": "Is Over-Excitation Enabled?",
+          "type": "choice"
+        },
+        "UnderExcitationEnabled": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            }
+          ],
+          "condition": "true",
+          "description": "欠励限制是否接入",
+          "name": "Is Under-Excitation Enabled?",
+          "type": "choice"
+        },
+        "TR": {
+          "condition": "true",
+          "description": "调节器输入滤波器时间常数（秒）",
+          "interval": "closed",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": 0,
+          "name": "TR",
+          "type": "real",
+          "unit": "s"
+        },
+        "K": {
+          "condition": "true",
+          "description": "调节器增益（pu）",
+          "interval": "closed",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": 0,
+          "name": "K",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Kv": {
+          "condition": "true",
+          "description": "比例积分或纯积分调节选择因子",
+          "interval": "closed",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": 0,
+          "name": "Kv",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "T1": {
+          "condition": "true",
+          "description": "电压调节器时间常数1（秒）",
+          "interval": "closed",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": -1000000000,
+          "name": "T1",
+          "type": "real",
+          "unit": "s"
+        },
+        "T2": {
+          "condition": "true",
+          "description": "电压调节器时间常数2（秒）",
+          "interval": "open",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": 0,
+          "name": "T2",
+          "type": "real",
+          "unit": "s"
+        },
+        "T3": {
+          "condition": "true",
+          "description": "电压调节器时间常数3（秒）",
+          "interval": "closed",
+          "maximum": 1.7976931348623157e+308,
+          "minimum": -1000000000,
+          "name": "T3",
+          "type": "real",
+          "unit": "s"
+        },
+        "T4": {
+          "condition": "true",
+          "description": "电压调节器时间常数4（秒）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "T4",
+          "type": "real",
+          "unit": "s"
+        },
+        "KA": {
+          "condition": "true",
+          "description": "调压器增益（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "KA",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "TA": {
+          "condition": "true",
+          "description": "调压器放大器的时间常数（秒）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "TA",
+          "type": "real",
+          "unit": "s"
+        },
+        "KF": {
+          "condition": "true",
+          "description": "调压器稳定回路增益（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "KF",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "TF": {
+          "condition": "true",
+          "description": "调压器稳定回路时间常数（秒）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "TF",
+          "type": "real",
+          "unit": "s"
+        },
+        "VAMAX": {
+          "condition": "true",
+          "description": "调节器最大内部电压（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "VAMAX",
+          "type": "real",
+          "unit": "pu"
+        },
+        "VAMIN": {
+          "condition": "true",
+          "description": "调节器最小内部电压（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "VAMIN",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "VRMAX": {
+          "condition": "true",
+          "description": "电压调节器最大输出（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "VRMAX",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "VRMIN": {
+          "condition": "true",
+          "description": "电压调节器最小输出（pu）",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "VRMIN",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "KC": {
+          "condition": "true",
+          "description": "换相电抗的整流器负载因子",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": -1000000000,
+          "name": "KC",
+          "type": "real",
+          "unit": "p.u"
+        },
+        "Enab_Loop_Iter": {
+          "choices": [
+            {
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "description": "Enable",
+              "key": "1",
+              "name": "Enable"
+            }
+          ],
+          "condition": "true",
+          "description": "允许利用迭代解环，可以解决部分数值不稳定问题，提高计算精度，但会降低效率。建议在Kf>0时开启。",
+          "name": "Enable Loop Iteration",
+          "type": "logical"
+        },
+        "Max_Loop_Iter": {
+          "description": "解环时的最大迭代次数",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Max Loop Iteration",
+          "type": "real"
+        },
+        "Tol_Loop_Iter": {
+          "description": "解环迭代收敛的容许误差。",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Tolerance",
+          "type": "real"
+        },
+        "Vro": {
+          "condition": "true",
+          "connection": "output",
+          "description": "内部量Vr输出信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Vr Measure",
+          "type": "pinLike"
+        },
+        "Vfo": {
+          "condition": "true",
+          "connection": "output",
+          "description": "内部量Vf输出信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Vf Measure",
+          "type": "pinLike"
+        },
+        "Vao": {
+          "condition": "true",
+          "connection": "output",
+          "description": "内部量Va输出信号",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Va Measure",
+          "type": "pinLike"
+        }
+      }
+    },
+    "_newGain": {
+      "definition": "model/CloudPSS/_newGain",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newGain",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "Input",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "\t输出端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "1",
+          "name": "Output",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入增益环节的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "G": {
+          "condition": "true",
+          "description": "增益常数<br/>增益常数 $K$ ，即放大或缩小的倍数",
+          "interval": "closed",
+          "name": "Gain Constant",
+          "type": "real",
+          "unit": ""
+        }
+      }
+    },
+    "SyncGeneratorRouter": {
+      "definition": "model/CloudPSS/SyncGeneratorRouter",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/SyncGeneratorRouter",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "定子端引脚（单线图）",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Stator Port",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "Control =~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "转速信号输入引脚，转速控制模式",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "1",
+          "name": "ω",
+          "visible": true,
+          "verified": true
+        },
+        "2": {
+          "condition": "Control =~ 1",
+          "connection": "input",
+          "data": "real",
+          "description": "机械转矩信号输入引脚，转矩控制模式",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "2",
+          "name": "Tm",
+          "visible": true,
+          "verified": true
+        },
+        "3": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "电磁转矩信号输出引脚",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "3",
+          "name": "Te",
+          "visible": true,
+          "verified": true
+        },
+        "4": {
+          "condition": "true",
+          "connection": "input",
+          "data": "real",
+          "description": "励磁电动势输入引脚",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "4",
+          "name": "Ef",
+          "visible": true,
+          "verified": true
+        },
+        "5": {
+          "condition": "true",
+          "connection": "output",
+          "data": "real",
+          "description": "励磁电流输出引脚",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "5",
+          "name": "If",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入同步电机名称，可缺省",
+          "name": "Name",
+          "type": "text"
+        },
+        "P": {
+          "condition": "true",
+          "description": "极数（不是极对数）<br/>电机级数，为极对数的两倍",
+          "interval": "closed",
+          "minimum": 2,
+          "name": "Poles",
+          "type": "integer"
+        },
+        "Smva": {
+          "condition": "true",
+          "description": "额定容量<br/>电机额定容量，也是电机标幺值系统的基准容量",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Power",
+          "type": "real",
+          "unit": "MVA"
+        },
+        "V": {
+          "condition": "true",
+          "description": "额定相电压有效值<br/>电机额定相电压有效值",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Voltage (L-G, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "freq": {
+          "condition": "true",
+          "description": "额定频率<br/>电机额定电频率，非转子转动频率",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Base Operation Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "R0": {
+          "condition": "true",
+          "description": "中性点电阻<br/>电机定子侧中性点的接地电阻，基值同定子绕组参数的基值",
+          "interval": "closed",
+          "name": "Neutral Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "ParamType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Equivalent Circuit Data",
+              "key": "0",
+              "name": "Equivalent Circuit Data"
+            },
+            {
+              "condition": "",
+              "description": "Experimental Data",
+              "key": "1",
+              "name": "Experimental Data"
+            }
+          ],
+          "condition": "true",
+          "description": "参数输入方式<br/>可选择Equivalent Circuit Data（等效电路参数）和Experimental Data（试验参数）两种参数输入方法",
+          "name": "Parameter Format",
+          "type": "choice"
+        },
+        "ModelType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "PD (Constant Conductance)",
+              "key": "0",
+              "name": "PD (Constant Conductance)"
+            },
+            {
+              "condition": "",
+              "description": "VBR-dq0",
+              "key": "1",
+              "name": "VBR-dq0"
+            }
+          ],
+          "condition": "true",
+          "description": "选择电机模型<br/>可选择PD(Constant Conductance) 和VBR-dq0 两种电机模型",
+          "name": "Model Type",
+          "type": "choice"
+        },
+        "NIM": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "梯形积分方法",
+              "key": "1",
+              "name": "Trapezoidal rule"
+            },
+            {
+              "condition": "",
+              "description": "根匹配方法",
+              "key": "2",
+              "name": "Root matching"
+            },
+            {
+              "condition": "",
+              "description": "零点补偿根匹配法",
+              "key": "3",
+              "name": "RM with extra zero"
+            }
+          ],
+          "condition": "true",
+          "description": "数值积分方法选择（仅对移频电磁暂态仿真有效）",
+          "name": "Numerical Integration Method",
+          "type": "choice"
+        },
+        "Rs": {
+          "condition": "",
+          "description": "定子电阻",
+          "interval": "closed",
+          "name": "Stator Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xls": {
+          "condition": "",
+          "description": "定子漏电抗",
+          "interval": "closed",
+          "name": "Stator Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xq": {
+          "condition": "",
+          "description": "q轴同步电抗",
+          "interval": "closed",
+          "name": "Q-Axis Synch. Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xd": {
+          "condition": "",
+          "description": "d轴同步电抗",
+          "interval": "closed",
+          "name": "D-Axis Synch. Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Rfd": {
+          "condition": "",
+          "description": "d轴励磁绕组电阻",
+          "interval": "closed",
+          "name": "Field Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xlfd": {
+          "condition": "",
+          "description": "d轴励磁绕组漏电抗",
+          "interval": "closed",
+          "name": "Field Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Rkd": {
+          "condition": "",
+          "description": "d轴阻尼D绕组电阻",
+          "interval": "closed",
+          "name": "D-Axis Damper Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xlkd": {
+          "condition": "",
+          "description": "d轴阻尼D绕组漏电抗",
+          "interval": "closed",
+          "name": "D-Axis Damper Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Rkqg": {
+          "condition": "",
+          "description": "q轴阻尼绕组1电阻（g绕组）",
+          "interval": "closed",
+          "name": "Q-Axis Damper No. 1 Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xlkqg": {
+          "condition": "",
+          "description": "q轴阻尼绕组1漏电抗（g绕组）",
+          "interval": "closed",
+          "name": "Q-Axis Damper No. 1 Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "RkqQ": {
+          "condition": "true",
+          "description": "q轴阻尼绕组2电阻（Q绕组）",
+          "interval": "closed",
+          "name": "Q-Axis Damper No. 2 Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "XlkqQ": {
+          "condition": "true",
+          "description": "q轴阻尼绕组2漏电抗（Q绕组）",
+          "interval": "closed",
+          "name": "Q-Axis Damper No. 2 Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Rs_2": {
+          "condition": "true",
+          "description": "定子电阻",
+          "interval": "closed",
+          "name": "Stator Resistance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xls_2": {
+          "condition": "true",
+          "description": "定子漏电抗",
+          "interval": "closed",
+          "name": "Stator Leakage Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xd_2": {
+          "condition": "true",
+          "description": "d轴同步电抗",
+          "interval": "closed",
+          "name": "D-Axis Synch. Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xdp_2": {
+          "condition": "",
+          "description": "d轴暂态电抗",
+          "interval": "closed",
+          "name": "D-Axis Transient Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xdpp_2": {
+          "condition": "true",
+          "description": "d轴次暂态电抗",
+          "interval": "closed",
+          "name": "D-Axis Sub-Transient Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xq_2": {
+          "condition": "",
+          "description": "q轴同步电抗",
+          "interval": "closed",
+          "name": "Q-Axis Sync. Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xqp_2": {
+          "condition": "",
+          "description": "q轴暂态电抗",
+          "interval": "closed",
+          "name": "Q-Axis Transient Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Xqpp_2": {
+          "condition": "true",
+          "description": "q轴次暂态电抗",
+          "interval": "closed",
+          "name": "Q-Axis Sub-Transient Reactance",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "Td0p_2": {
+          "condition": "true",
+          "description": "d轴励磁f绕组、定子开路时间常数",
+          "interval": "closed",
+          "name": "D-Axis Transient Time (Open Circuit)",
+          "type": "real",
+          "unit": "s"
+        },
+        "Td0pp_2": {
+          "condition": "true",
+          "description": "d轴阻尼D绕组、定子开路时间常数",
+          "interval": "closed",
+          "name": "D-Axis Sub-Transient Time (Open Circuit)",
+          "type": "real",
+          "unit": "s"
+        },
+        "Tq0p_2": {
+          "condition": "true",
+          "description": "q轴阻尼g绕组、定子开路时间常数",
+          "interval": "closed",
+          "name": "Q-Axis Transient Time (Open Circuit)",
+          "type": "real",
+          "unit": "s"
+        },
+        "Tq0pp_2": {
+          "condition": "true",
+          "description": "q轴阻尼Q绕组、定子开路时间常数",
+          "interval": "closed",
+          "name": "Q-Axis Sub-Transient Time (Open Circuit)",
+          "type": "real",
+          "unit": "s"
+        },
+        "Control": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Speed Control",
+              "key": "0",
+              "name": "Speed Control"
+            },
+            {
+              "condition": "",
+              "description": "Torque Control",
+              "key": "1",
+              "name": "Torque Control"
+            }
+          ],
+          "condition": "true",
+          "description": "选择控制类型<br/>选择Speed Control（转速控制）或Torque Control（转矩控制）模式",
+          "name": "Control Type",
+          "type": "choice"
+        },
+        "Tj": {
+          "condition": "Control =~ 1",
+          "description": "发电机转子惯性时间常数<br/>此处应填写惯性时间常数 $T_J=2H$，其中$H$为惯性常数（北美和欧洲参数形式）",
+          "interval": "closed",
+          "name": "Inertia Constant",
+          "type": "real",
+          "unit": "s"
+        },
+        "Dm": {
+          "condition": "Control =~ 1",
+          "description": "机械阻尼常数",
+          "interval": "closed",
+          "name": "Damping Constant",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "StartupType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "from Zero-state",
+              "key": "0",
+              "name": "from Zero-state"
+            },
+            {
+              "condition": "",
+              "description": "Ramping Equivalent Voltage",
+              "key": "2",
+              "name": "Ramping Equivalent Voltage"
+            },
+            {
+              "condition": "",
+              "description": "Source to Machine",
+              "key": "4",
+              "name": "Source to Machine"
+            }
+          ],
+          "condition": "",
+          "description": "初始化类型<br/>选择发电机初始化类型，分为from Zero-state（平启动），Ramping Equivalent Voltage（斜坡等效电压源启动）和Source to Machine（电压源转电机）三种方式",
+          "name": "Startup Type",
+          "type": "choice"
+        },
+        "RampingTime": {
+          "condition": "StartupType >= 2",
+          "description": "爬坡时间<br/>Source to Machine启动方式下，需指定电压爬升时间",
+          "interval": "closed",
+          "name": "Ramping Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "V_mag": {
+          "condition": "StartupType > 0",
+          "description": "初始相电压标幺值<br/>来自潮流计算结果，选择from Steady-state模式和Source to Machine模式时需指定",
+          "interval": "closed",
+          "name": "Initial Voltage Magnitude",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "V_ph": {
+          "condition": "StartupType > 0",
+          "description": "初始相电压相位<br/>来自潮流计算结果，选择from Steady-state模式和Source to Machine模式时需指定",
+          "interval": "closed",
+          "name": "Initial Voltage Phase",
+          "type": "real",
+          "unit": "Deg"
+        },
+        "AP": {
+          "condition": "StartupType =~ 1 || StartupType =~ 2",
+          "description": "初始有功功率<br/>来自潮流计算结果，选择from Steady-state模式时需指定",
+          "interval": "closed",
+          "name": "Initial Active Power",
+          "type": "real",
+          "unit": "MW"
+        },
+        "RP": {
+          "condition": "StartupType =~ 1 || StartupType =~ 2",
+          "description": "初始无功功率<br/>来自潮流计算结果，选择from Steady-state模式时需指定",
+          "interval": "closed",
+          "name": "Initial Reactive Power",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "source_resistance": {
+          "condition": "StartupType =~ 4",
+          "description": "初始等效电压源内阻<br/>S2M启动方式下的初始等效电压源内阻，选择Source to Machine模式时需指定",
+          "interval": "closed",
+          "maximum": 1000000000,
+          "minimum": 1e-09,
+          "name": "Initial Source Resistance",
+          "type": "real",
+          "unit": "Ω"
+        },
+        "s2m": {
+          "condition": "StartupType =~ 4 || StartupType =~ 2",
+          "connection": "input",
+          "description": "电压源-电机切换信号<br/>电压源向电机切换的触发信号名称，填写以@符号开头的字符串名，如@S2M。选择Source to Machine模式时需指定",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Source to Machine Transition Signal",
+          "type": "pinLike"
+        },
+        "l2n": {
+          "condition": "true",
+          "connection": "input",
+          "description": "转子方程解锁信号<br/>控制转子运动方程解锁的信号名，填写以@符号开头的字符串名，如@L2N。若此处为空，则电机转子始终处于转速锁定状态",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Rotor Unlocking Signal",
+          "type": "pinLike"
+        },
+        "BusType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "PQ Bus",
+              "key": "0",
+              "name": "PQ Bus"
+            },
+            {
+              "condition": "",
+              "description": "PV Bus",
+              "key": "1",
+              "name": "PV Bus"
+            },
+            {
+              "condition": "",
+              "description": "Slack Bus",
+              "key": "2",
+              "name": "Slack Bus"
+            }
+          ],
+          "condition": "true",
+          "description": "节点类型<br/>用于潮流计算功能，指定电源所在母线的节点类型",
+          "name": "Bus Type",
+          "type": "choice"
+        },
+        "pf_P": {
+          "condition": "BusType =~ 0 || BusType =~ 1",
+          "description": "节点注入有功功率<br/>用于潮流计算功能，对 PV、PQ 节点有效",
+          "interval": "closed",
+          "name": "Injected Active Power",
+          "type": "real",
+          "unit": "MW"
+        },
+        "pf_Q": {
+          "condition": "BusType =~ 0",
+          "description": "节点注入无功功率<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "name": "Injected Reactive Power",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "pf_V": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "母线电压幅值<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Bus Voltage Magnitude",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Theta": {
+          "condition": "BusType =~ 2",
+          "description": "母线电压相位<br/>用于潮流计算功能，对平衡节点有效",
+          "interval": "closed",
+          "name": "Bus Voltage Angle",
+          "type": "real",
+          "unit": "Deg"
+        },
+        "pf_Vmin": {
+          "condition": "BusType =~ 0",
+          "description": "母线电压下限<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Lower Voltage Limit",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Vmax": {
+          "condition": "BusType =~ 0",
+          "description": "母线电压上限<br/>用于潮流计算功能，对 PQ 节点有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Upper Voltage Limit",
+          "type": "real",
+          "unit": "p.u."
+        },
+        "pf_Qmin": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "无功功率下限<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "name": "Lower Reactive Power Limit",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "pf_Qmax": {
+          "condition": "BusType =~ 1 || BusType =~ 2",
+          "description": "无功功率上限<br/>用于潮流计算功能，对 PV、平衡节点有效",
+          "interval": "closed",
+          "name": "Upper Reactive Power Limit",
+          "type": "real",
+          "unit": "MVar"
+        },
+        "s2m_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "电压源-电机切换信号<br/>此处输入电压源-电机切换信号量测信号的标签，如 S2M",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Source to Machine Signal",
+          "type": "pinLike"
+        },
+        "l2n_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "转子方程解锁信号<br/>此处输入转子方程解锁信号量测信号的标签，如 L2N",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Rotor Unlocking Signal",
+          "type": "pinLike"
+        },
+        "Ef0_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "稳态开路电势Ef0量测信号<br/>此处输入稳态开路电势Ef0量测信号的标签，如 Ef0",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Initial Open-Circuit Voltage (Ef) [p.u.]",
+          "type": "pinLike"
+        },
+        "Tm0_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "稳态机械转矩Tm0量测信号<br/>此处输入稳态机械转矩Tm0量测信号的标签，如 Tm0",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Initial Mechanical Torque [p.u.]",
+          "type": "pinLike"
+        },
+        "wr_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "转速量测信号<br/>此处输入转速量测信号的标签，如 w",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Rotor Speed [p.u.]",
+          "type": "pinLike"
+        },
+        "theta_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "转子角量测信号<br/>此处输入转子角量测信号的标签，如 Theta",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Rotor Angle [Rad]",
+          "type": "pinLike"
+        },
+        "loadangle_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "Q轴与端电压相量夹角<br/>此处输入Q轴与端电压相量夹角量测信号的标签，如 LA",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Load Angle (Q-axis Leads Va)[Rad]",
+          "type": "pinLike"
+        },
+        "loadangle_so": {
+          "condition": "true",
+          "connection": "output",
+          "description": "Q轴与同步旋转坐标系夹角<br/>此处输入Q轴与同步旋转坐标系夹角量测信号的标签，如 LA1",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Load Angle (Q-axis Leads ωₛ*t)[Rad]",
+          "type": "pinLike"
+        },
+        "VT_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "定子端电压有效值量测信号<br/>此处输入定子端电压有效值量测信号的标签，如 Vrms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Terminal RMS Voltage [p.u.]",
+          "type": "pinLike"
+        },
+        "IT_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "定子端电流有效值量测信号<br/>此处输入定子端电流有效值量测信号的标签，如 Irms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Terminal RMS Current [p.u.]",
+          "type": "pinLike"
+        },
+        "PT_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "定子端输出有功功率信号<br/>此处输入定子端输出有功功率信号量测信号的标签，如 Pmsr",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Terminal Active Power [MW]",
+          "type": "pinLike"
+        },
+        "QT_o": {
+          "condition": "true",
+          "connection": "output",
+          "description": "定子端输出无功功率信号<br/>此处输入定子端输出无功功率信号量测信号的标签，如 Qmsr",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Terminal Reactive Power [MVar]",
+          "type": "pinLike"
+        },
+        "IT_inst": {
+          "condition": "true",
+          "connection": "output",
+          "description": "定子端三相电流<br/>此处输入定子端三相电流量测信号的标签，如 Iabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "Terminal 3 Phase Current Vector [kA]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "TransmissionLine": {
+      "definition": "model/CloudPSS/TransmissionLine",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/TransmissionLine",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "送端连接端口",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "0",
+          "name": "Sending (i) Pin",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "true",
+          "connection": "electrical",
+          "description": "受端连接端口",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "1",
+          "name": "Receiving (j) Pin",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/>此处输入三相传输线的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "Freq": {
+          "condition": "true",
+          "description": "额定频率<br/>输入额定频率",
+          "interval": "closed",
+          "maximum": 1000000,
+          "minimum": 0,
+          "name": "Steady-state Frequency",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "Length": {
+          "condition": "true",
+          "description": "线路长度<br/>输入线路长度$l$",
+          "interval": "closed",
+          "maximum": 1e+30,
+          "minimum": 1e-30,
+          "name": "Length of Line",
+          "type": "real",
+          "unit": "km"
+        },
+        "ParamFormat": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "R, X, B (p.u.)",
+              "key": "0",
+              "name": "R, X, B (p.u.)"
+            },
+            {
+              "condition": "",
+              "description": "R, Xl, Xc (Ω)",
+              "key": "1",
+              "name": "R, Xl, Xc (Ω)"
+            }
+          ],
+          "condition": "true",
+          "description": "参数输入方式<br/>选择参数输入方式，标幺值和有名值两种",
+          "name": "Parameter Format",
+          "type": "choice"
+        },
+        "Zero": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Same as + Seq. Data",
+              "key": "0",
+              "name": "Same as + Seq. Data"
+            },
+            {
+              "condition": "",
+              "description": "Enter 0 Seq. Data",
+              "key": "1",
+              "name": "Enter 0 Seq. Data"
+            }
+          ],
+          "condition": "true",
+          "description": "零序参数输入方法<br/>选择是否输入零序参数，若选择否，则零序参数与正序参数相同",
+          "name": "0 Seq. Data",
+          "type": "choice"
+        },
+        "LongLineCorrection": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "No",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "",
+              "description": "Yes",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "true",
+          "description": "填入的线路参数是否已进行过长导线修正?<br/>选择Yes或No，表示所填参数是否进行过长导线修正",
+          "name": "Has the Data Been Corrected for Long Line Effects?",
+          "type": "choice"
+        },
+        "ModelType": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Lumped π-Model",
+              "key": "0",
+              "name": "Lumped π-Model"
+            },
+            {
+              "condition": "",
+              "description": "Bergeron Line Model",
+              "key": "1",
+              "name": "Bergeron Line Model"
+            }
+          ],
+          "condition": "true",
+          "description": "传输线模型种类<br/>选择传输线模型种类：Bergeron Line Model（贝格隆分布参数模型）或Lumped π-Model（π型集总参数模型）",
+          "name": "Model Type",
+          "type": "choice"
+        },
+        "Decoupled": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "否",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "ModelType =~ 1",
+              "description": "是",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "ModelType =~ 1",
+          "description": "是否将此线路设置为分网线路？<br/>选择Yes或No，表示所填参数是否将此线路设置为分网线路",
+          "name": "Set This Line as a Network Partition Line?",
+          "type": "choice"
+        },
+        "Decoupled_Multimachine": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "否",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "condition": "ModelType =~ 1",
+              "description": "是",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "condition": "ModelType =~ 1",
+          "description": "是否将此线路设置为多机分网线路？<br/>选择Yes或No，表示所填参数是否将此线路设置为多机分网线路",
+          "name": "Set This Line as a Multi-machine Network Partition Line?",
+          "type": "choice"
+        },
+        "NIM": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "梯形积分方法",
+              "key": "1",
+              "name": "Trapezoidal rule"
+            },
+            {
+              "condition": "",
+              "description": "根匹配方法",
+              "key": "2",
+              "name": "Root matching"
+            },
+            {
+              "condition": "",
+              "description": "零点补偿根匹配方法",
+              "key": "3",
+              "name": "RM with extra zero"
+            }
+          ],
+          "condition": "true",
+          "description": "数值积分方法选择（仅对移频电磁暂态仿真有效）",
+          "name": "Numerical Integration Method",
+          "type": "choice"
+        },
+        "Vbase": {
+          "condition": "ParamFormat =~ 0",
+          "description": "额定电压<br/>输入额定电压（电压基值）",
+          "interval": "closed",
+          "minimum": 0.01,
+          "name": "Rated Voltage (L-L, RMS)",
+          "type": "real",
+          "unit": "kV"
+        },
+        "Sbase": {
+          "condition": "ParamFormat =~ 0",
+          "description": "额定容量<br/>输入额定容量（容量基值）",
+          "interval": "closed",
+          "minimum": 0.01,
+          "name": "Rated Power Capacity",
+          "type": "real",
+          "unit": "MVA"
+        },
+        "R1pu": {
+          "condition": "ParamFormat =~ 0",
+          "description": "单位长度正序电阻<br/>输入单位长度正序电阻标幺值$R_1$",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "+/- Seq. Resistance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "X1pu": {
+          "condition": "ParamFormat =~ 0",
+          "description": "单位长度正序电抗<br/>输入单位长度正序电抗标幺值$X_1$",
+          "interval": "closed",
+          "minimum": 1e-09,
+          "name": "+/- Seq. Inductive Reactance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "B1pu": {
+          "condition": "ParamFormat =~ 0",
+          "description": "单位长度正序电纳<br/>输入单位长度正序电纳标幺值$B_1$",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "+/- Seq. Capacitive Susceptance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "R0pu": {
+          "condition": "(ParamFormat =~ 0) && (Zero =~ 1)",
+          "description": "单位长度零序电阻<br/>输入单位长度零序电阻标幺值$R_0$ ​，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "0 Seq. Resistance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "X0pu": {
+          "condition": "(ParamFormat =~ 0) && (Zero =~ 1)",
+          "description": "单位长度零序电抗<br/>输入单位长度零序电抗标幺值 $X_0$，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "0 Seq. Inductive Reactance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "B0pu": {
+          "condition": "(ParamFormat =~ 0) && (Zero =~ 1)",
+          "description": "单位长度零序电纳<br/>输入单位长度零序电纳标幺值$B_0$，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "0 Seq. Capacitive Susceptance",
+          "type": "real",
+          "unit": "p.u./km"
+        },
+        "R1": {
+          "condition": "ParamFormat =~ 1",
+          "description": "单位长度正序电阻<br/>输入单位长度正序电阻有名值$R_1$",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "+/- Seq. Resistance",
+          "type": "real",
+          "unit": "Ω/km"
+        },
+        "Xl1": {
+          "condition": "ParamFormat =~ 1",
+          "description": "单位长度正序感抗<br/>输入单位长度正序串联电抗有名值$X_{l1}$",
+          "interval": "closed",
+          "minimum": 1e-09,
+          "name": "+/- Seq. Inductive Reactance",
+          "type": "real",
+          "unit": "Ω/km"
+        },
+        "Xc1": {
+          "condition": "ParamFormat =~ 1",
+          "description": "单位长度正序容抗<br/>输入单位长度正序并联容抗有名值$X_{c1}$",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "+/- Seq. Capacitive Reactance",
+          "type": "real",
+          "unit": "MΩ*km"
+        },
+        "R0": {
+          "condition": "(ParamFormat =~ 1) && (Zero =~ 1)",
+          "description": "单位长度零序电阻<br/>输入单位长度零序电阻有名值 $R_0$，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "0 Seq. Resistance",
+          "type": "real",
+          "unit": "Ω/km"
+        },
+        "Xl0": {
+          "condition": "(ParamFormat =~ 1) && (Zero =~ 1)",
+          "description": "单位长度零序感抗<br/>输入单位长度零序串联电抗有名值$X_{l0}$，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "0 Seq. Inductive Reactance",
+          "type": "real",
+          "unit": "Ω/km"
+        },
+        "Xc0": {
+          "condition": "(ParamFormat =~ 1) && (Zero =~ 1)",
+          "description": "单位长度零序容抗<br/>输入单位长度零序并联容抗有名值$X_{c0}$，仅当选择“Enter 0 Seq. Data”（输入零序参数）时有效",
+          "interval": "right-open",
+          "minimum": 0,
+          "name": "0 Seq. Capacitive Reactance",
+          "type": "real",
+          "unit": "MΩ*km"
+        },
+        "Irated": {
+          "condition": "",
+          "description": "额定电流，电磁暂态仿真内核暂不读取该参数。",
+          "interval": "closed",
+          "minimum": 0,
+          "name": "Rated Current",
+          "type": "real",
+          "unit": "A"
+        },
+        "Is": {
+          "condition": "true",
+          "connection": "output",
+          "description": "送端电流向量<br/>此处输入传输线送端电流量测信号的标签（3×1维），如 Isabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Current Vector (Sending Terminal) [kA]",
+          "type": "pinLike"
+        },
+        "Ir": {
+          "condition": "true",
+          "connection": "output",
+          "description": "受端电流向量<br/>此处输入传输线受端电流量测信号的标签（3×1维），如 Irabc",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "name": "3 Phase Current Vector (Receiving Terminal) [kA]",
+          "type": "pinLike"
+        },
+        "Isrms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "送端电流均方根值<br/>此处输入传输线送端电流有效值量测信号的标签（1×1维），如 Isrms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Current (Sending Terminal) [kA]",
+          "type": "pinLike"
+        },
+        "Irrms": {
+          "condition": "true",
+          "connection": "output",
+          "description": "受端电流均方根值<br/>此处输入传输线受端电流有效值量测信号的标签（1×1维），如 Irrms",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "RMS Current (Receiving Terminal) [kA]",
+          "type": "pinLike"
+        },
+        "Ps": {
+          "condition": "true",
+          "connection": "output",
+          "description": "送端有功功率<br/>此处输入传输线送端有功功率量测信号的标签（1×1维），如 Ps",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power (Sending Terminal) [MW]",
+          "type": "pinLike"
+        },
+        "Qs": {
+          "condition": "true",
+          "connection": "output",
+          "description": "送端无功功率<br/>此处输入传输线送端无功功率量测信号的标签（1×1维），如 Qs",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power (Sending Terminal) [MVar]",
+          "type": "pinLike"
+        },
+        "Pr": {
+          "condition": "true",
+          "connection": "output",
+          "description": "受端有功功率<br/>此处输入传输线受端有功功率量测信号的标签（1×1维），如 Pr",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power (Receiving Terminal) [MW]",
+          "type": "pinLike"
+        },
+        "Qr": {
+          "condition": "true",
+          "connection": "output",
+          "description": "受端无功功率<br/>此处输入传输线受端无功功率量测信号的标签（1×1维），如 Qr",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power (Receiving Terminal) [MVar]",
+          "type": "pinLike"
+        },
+        "Ploss": {
+          "condition": "true",
+          "connection": "output",
+          "description": "有功功率线路损耗<br/>此处输入传输线有功功率损耗量测信号的标签（1×1维），如 Ploss",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Active Power Losses [MW]",
+          "type": "pinLike"
+        },
+        "Qloss": {
+          "condition": "true",
+          "connection": "output",
+          "description": "无功功率线路损耗<br/>此处输入传输线无功功率损耗量测信号的标签（1×1维），如 Qloss",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "name": "Reactive Power Losses [MVar]",
+          "type": "pinLike"
+        }
+      }
+    },
+    "Harmonic_continuous_injection_I": {
+      "definition": "model/CloudPSS/Harmonic_continuous_injection_I",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/Harmonic_continuous_injection_I",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "Freq": {
+          "connection": "output",
+          "data": "real",
+          "description": "扰动频率",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Freq",
+          "name": "Freq",
+          "visible": true,
+          "verified": true
+        },
+        "Neg": {
+          "connection": "electrical",
+          "data": "real",
+          "description": "Neg",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "Neg",
+          "name": "Neg",
+          "visible": true,
+          "verified": true
+        },
+        "Ph": {
+          "connection": "output",
+          "data": "real",
+          "description": "总阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Ph",
+          "name": "Ph",
+          "visible": true,
+          "verified": true
+        },
+        "Phn": {
+          "connection": "output",
+          "data": "real",
+          "description": "负边阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Phn",
+          "name": "Ph-",
+          "visible": true,
+          "verified": true
+        },
+        "Php": {
+          "connection": "output",
+          "data": "real",
+          "description": "正边阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Php",
+          "name": "Ph+",
+          "visible": true,
+          "verified": true
+        },
+        "Pos": {
+          "connection": "electrical",
+          "data": "real",
+          "description": "Pos",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "Pos",
+          "name": "Pos",
+          "visible": true,
+          "verified": true
+        },
+        "Z": {
+          "connection": "output",
+          "data": "real",
+          "description": "总阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Z",
+          "name": "Z",
+          "visible": true,
+          "verified": true
+        },
+        "Zn": {
+          "connection": "output",
+          "data": "real",
+          "description": "负边阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Zn",
+          "name": "Z-",
+          "visible": true,
+          "verified": true
+        },
+        "Zp": {
+          "connection": "output",
+          "data": "real",
+          "description": "正边阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Zp",
+          "name": "Z+",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Mag": {
+          "description": "扰动幅值",
+          "name": "Amplitude",
+          "type": "real",
+          "unit": "A"
+        },
+        "InitTime": {
+          "description": "扰动注入起始时间",
+          "name": "Injection Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "RampTime": {
+          "description": "扰动斜坡注入时间",
+          "name": "Ramp Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Sequence": {
+          "choices": [
+            {
+              "description": "A相阻抗",
+              "key": "0",
+              "name": "Phase A"
+            },
+            {
+              "description": "正序阻抗",
+              "key": "1",
+              "name": "Positive Sequence"
+            },
+            {
+              "description": "负序阻抗",
+              "key": "2",
+              "name": "Negative Sequence"
+            }
+          ],
+          "description": "相序选择",
+          "name": "Phase Sequence",
+          "type": "choice"
+        },
+        "InitVal1": {
+          "description": "第一段起始频率",
+          "name": "Init Value 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal1": {
+          "description": "第一段结束频率",
+          "name": "End Value 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep1": {
+          "description": "第一段频率间隔",
+          "name": "Delta Step 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime1": {
+          "description": "第一段时间间隔",
+          "name": "Delta Time 1",
+          "type": "real",
+          "unit": "s"
+        },
+        "InitVal2": {
+          "condition": "false",
+          "description": "第二段起始频率",
+          "name": "Init Value 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal2": {
+          "description": "第二段结束频率",
+          "name": "End Value 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep2": {
+          "description": "第二段频率间隔",
+          "name": "Delta Step 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime2": {
+          "description": "第二段时间间隔",
+          "name": "Delta Time 2",
+          "type": "real",
+          "unit": "s"
+        },
+        "InitVal3": {
+          "condition": "false",
+          "description": "第三段起始频率",
+          "name": "Init Value 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal3": {
+          "description": "第三段结束频率",
+          "name": "End Value 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep3": {
+          "description": "第三段频率间隔",
+          "name": "Delta Step 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime3": {
+          "description": "第三段时间间隔",
+          "name": "Delta Time 3",
+          "type": "real",
+          "unit": "s"
+        },
+        "RampRatio": {
+          "description": "扰动斜坡注入的时间比例（斜坡时间/时间间隔）",
+          "interval": "left-open",
+          "maximum": 1,
+          "minimum": 0,
+          "name": "Ramp Ratio",
+          "type": "real"
+        },
+        "UnitTest": {
+          "choices": [
+            {
+              "description": "",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "description": "",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "description": "单元测试，一般禁用",
+          "name": "UnitTest",
+          "type": "logical"
+        }
+      }
+    },
+    "Harmonic_continuous_injection_V": {
+      "definition": "model/CloudPSS/Harmonic_continuous_injection_V",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/Harmonic_continuous_injection_V",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "Freq": {
+          "connection": "output",
+          "data": "real",
+          "description": "扰动频率",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Freq",
+          "name": "Freq",
+          "visible": true,
+          "verified": true
+        },
+        "Neg": {
+          "connection": "electrical",
+          "data": "real",
+          "description": "Neg",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "Neg",
+          "name": "Neg",
+          "visible": true,
+          "verified": true
+        },
+        "Ph": {
+          "connection": "output",
+          "data": "real",
+          "description": "总阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Ph",
+          "name": "Ph",
+          "visible": true,
+          "verified": true
+        },
+        "Phn": {
+          "connection": "output",
+          "data": "real",
+          "description": "负边阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Phn",
+          "name": "Ph-",
+          "visible": true,
+          "verified": true
+        },
+        "Php": {
+          "connection": "output",
+          "data": "real",
+          "description": "正边阻抗相位",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Php",
+          "name": "Ph+",
+          "visible": true,
+          "verified": true
+        },
+        "Pos": {
+          "connection": "electrical",
+          "data": "real",
+          "description": "Pos",
+          "dim": [
+            "3",
+            "1"
+          ],
+          "key": "Pos",
+          "name": "Pos",
+          "visible": true,
+          "verified": true
+        },
+        "Z": {
+          "connection": "output",
+          "data": "real",
+          "description": "总阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Z",
+          "name": "Z",
+          "visible": true,
+          "verified": true
+        },
+        "Zn": {
+          "connection": "output",
+          "data": "real",
+          "description": "负边阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Zn",
+          "name": "Z-",
+          "visible": true,
+          "verified": true
+        },
+        "Zp": {
+          "connection": "output",
+          "data": "real",
+          "description": "正边阻抗幅值",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "Zp",
+          "name": "Z+",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Mag": {
+          "description": "扰动幅值",
+          "name": "Amplitude",
+          "type": "real",
+          "unit": "V"
+        },
+        "InitTime": {
+          "description": "扰动注入起始时间",
+          "name": "Injection Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "RampTime": {
+          "description": "扰动斜坡注入时间",
+          "name": "Ramp Time",
+          "type": "real",
+          "unit": "s"
+        },
+        "Sequence": {
+          "choices": [
+            {
+              "description": "A相阻抗",
+              "key": "0",
+              "name": "Phase A"
+            },
+            {
+              "description": "正序阻抗",
+              "key": "1",
+              "name": "Positive Sequence"
+            },
+            {
+              "description": "负序阻抗",
+              "key": "2",
+              "name": "Negative Sequence"
+            }
+          ],
+          "description": "相序选择",
+          "name": "Phase Sequence",
+          "type": "choice"
+        },
+        "InitVal1": {
+          "description": "第一段起始频率",
+          "name": "Init Value 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal1": {
+          "description": "第一段结束频率",
+          "name": "End Value 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep1": {
+          "description": "第一段频率间隔",
+          "name": "Delta Step 1",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime1": {
+          "description": "第一段时间间隔",
+          "name": "Delta Time 1",
+          "type": "real",
+          "unit": "s"
+        },
+        "InitVal2": {
+          "condition": "false",
+          "description": "第二段起始频率",
+          "name": "Init Value 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal2": {
+          "description": "第二段结束频率",
+          "name": "End Value 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep2": {
+          "description": "第二段频率间隔",
+          "name": "Delta Step 2",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime2": {
+          "description": "第二段时间间隔",
+          "name": "Delta Time 2",
+          "type": "real",
+          "unit": "s"
+        },
+        "InitVal3": {
+          "condition": "false",
+          "description": "第三段起始频率",
+          "name": "Init Value 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "EndVal3": {
+          "description": "第三段结束频率",
+          "name": "End Value 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaStep3": {
+          "description": "第三段频率间隔",
+          "name": "Delta Step 3",
+          "type": "real",
+          "unit": "Hz"
+        },
+        "DeltaTime3": {
+          "description": "第三段时间间隔",
+          "name": "Delta Time 3",
+          "type": "real",
+          "unit": "s"
+        },
+        "RampRatio": {
+          "description": "扰动斜坡注入的时间比例（斜坡时间/时间间隔）",
+          "interval": "left-open",
+          "maximum": 1,
+          "minimum": 0,
+          "name": "Ramp Ratio",
+          "type": "real"
+        },
+        "UnitTest": {
+          "choices": [
+            {
+              "description": "",
+              "key": "0",
+              "name": "No"
+            },
+            {
+              "description": "",
+              "key": "1",
+              "name": "Yes"
+            }
+          ],
+          "description": "单元测试，一般禁用",
+          "name": "UnitTest",
+          "type": "logical"
+        }
+      }
+    },
+    "_newSum": {
+      "definition": "model/CloudPSS/_newSum",
+      "evidence": {
+        "kind": "platform_metadata",
+        "rid": "model/CloudPSS/_newSum",
+        "fields": [
+          "revision.pins",
+          "revision.parameters"
+        ],
+        "retrieved_at": "2026-09-08"
+      },
+      "pins": {
+        "0": {
+          "condition": "A !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口A，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "0",
+          "name": "A",
+          "visible": true,
+          "verified": true
+        },
+        "1": {
+          "condition": "B !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口B，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "1",
+          "name": "B",
+          "visible": true,
+          "verified": true
+        },
+        "2": {
+          "condition": "C !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口C，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "2",
+          "name": "C",
+          "visible": true,
+          "verified": true
+        },
+        "3": {
+          "condition": "D !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口D，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "3",
+          "name": "D",
+          "visible": true,
+          "verified": true
+        },
+        "4": {
+          "condition": "E !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口E，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "4",
+          "name": "E",
+          "visible": true,
+          "verified": true
+        },
+        "5": {
+          "condition": "F !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口F，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "5",
+          "name": "F",
+          "visible": true,
+          "verified": true
+        },
+        "6": {
+          "condition": "G !~ 0",
+          "connection": "input",
+          "data": "real",
+          "description": "输入端口G，仅在该端口使能时有效",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "6",
+          "name": "G",
+          "visible": true,
+          "verified": true
+        },
+        "7": {
+          "condition": "",
+          "connection": "output",
+          "data": "real",
+          "description": "输出端口",
+          "dim": [
+            "1",
+            "1"
+          ],
+          "key": "7",
+          "name": "Output",
+          "visible": true,
+          "verified": true
+        }
+      },
+      "parameters": {
+        "Name": {
+          "condition": "true",
+          "description": "元件名称<br/> 此处输入加法器/减法器的名称（可缺省）",
+          "name": "Name",
+          "type": "text"
+        },
+        "A": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端A<br/>选择输入端A为加、减或禁用",
+          "name": "Input A",
+          "type": "choice"
+        },
+        "B": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端B<br/>选择输入端B为加、减或禁用",
+          "name": "Input B",
+          "type": "choice"
+        },
+        "C": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端C<br/>选择输入端C为加、减或禁用",
+          "name": "Input C",
+          "type": "choice"
+        },
+        "D": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端D<br/>选择输入端D为加、减或禁用",
+          "name": "Input D",
+          "type": "choice"
+        },
+        "E": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端E<br/>选择输入端E为加、减或禁用",
+          "name": "Input E",
+          "type": "choice"
+        },
+        "F": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端F<br/>选择输入端F为加、减或禁用",
+          "name": "Input F",
+          "type": "choice"
+        },
+        "G": {
+          "choices": [
+            {
+              "condition": "",
+              "description": "Disable",
+              "key": "0",
+              "name": "Disable"
+            },
+            {
+              "condition": "",
+              "description": "Add",
+              "key": "1",
+              "name": "Add"
+            },
+            {
+              "condition": "",
+              "description": "Subtract",
+              "key": "-1",
+              "name": "Subtract"
+            }
+          ],
+          "condition": "true",
+          "description": "输入端G<br/>选择输入端G为加、减或禁用",
+          "name": "Input G",
+          "type": "choice"
+        }
+      }
+    }
+  }
+}

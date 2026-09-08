@@ -88,6 +88,9 @@ saveProject 的内部实现只调用 Model.create；禁止改用 Model.save(key)
 | deleteComponent(compId) | 新增方法，删除普通元件和关联图形边；保留其他元件共享的节点名称 |
 | refreshTopology() | 兼容 configs列表/整数索引及字典/key；更新 sa.topo，并返回 revision_hash、topology、component_count |
 | deleteEdges()、getEdgeTopoPinNum() | 图形连线转命名 pins；不等于元件删除。多个节点别名等无法可靠转换时拒绝，尚不覆盖参考实现所有信号映射 |
+| getConnections()、getDiagramEdges() | 只读查询当前 pin/拓扑网络及初始化前图形边审计；不创建边、不修改模型 |
 | saveProject(newID, name=None, desc=None, *, confirmed=False) | newID 改为完整新 RID，confirmed=True 才能创建；返回上述结构化状态 |
 
 故障/N-1/量测高级方法尚未迁入；可以用库中现有模板做基础 CRUD，但不能声称这些高级方法已经可调用。仿真和报告不属于本 Skill。
+
+| getConnections()、getDiagramEdges() | 只读查询当前 pin/拓扑网络及初始化前图形边审计；不创建边、不修改模型 |

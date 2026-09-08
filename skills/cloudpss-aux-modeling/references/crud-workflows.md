@@ -42,3 +42,7 @@
 连续修改复用宿主私有 session_state，内部领域对象是 sa.project。进程重启会丢失未保存修改和预览。
 
 用户要求重新加载或切换源模型时，通过 initialize + options.reset=true，并在 session_state.original_rid 提供源 RID。不要把保存目标 RID写入 original_rid，否则会误切换工作区。
+
+## 查询连接与图形边
+
+初始化后使用 `query_connections` 查询 pins 的节点归属和同网端点；需要审计转换前画布连线时使用 `query_edges` 的 `view=original`。不要用 `delete_edges` 作为查询手段。

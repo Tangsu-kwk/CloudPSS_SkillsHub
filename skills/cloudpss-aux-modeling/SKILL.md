@@ -32,6 +32,8 @@ metadata:
 - 删除元件、创建画布和删除图形边；
 - 回读修改结果并刷新拓扑；
 - 查询组件库模板及参数/pin schema；
+- 查询当前 pin 网络及初始化前的图形边审计；
+- 查询当前 pin 网络及初始化前的图形边审计；
 - 用户确认后只以新 RID 保存并回读。
 
 库中的断路器、故障元件、通道和量测元件可以做基础 CRUD；故障/N-1/量测的高级场景方法尚未迁入。本 Skill 不执行仿真和结果报告。
@@ -83,6 +85,10 @@ sa.setInitialConditions()
 - 列举模板：`operation=list_templates`；用户未指定准确模板键时先调用。
 - 查看模板字段：`operation=get_template_schema`，`target.template_key` 使用列表返回的精确键。
 - 查询模型：`operation=query`；`target.identifier/key/label` 查询单个元件，`target.definition` 按类型分页查询。
+- 查询连接：`operation=query_connections`；按 `target.identifier`（可附 `pin`）或 `target.node` 查询当前 pin/拓扑节点及同网端点。
+- 查询图形边：`operation=query_edges`；`target.view` 为 `original`（初始化转换前快照）或 `current`。原始快照不存在时明确返回不可用，不从删除预览猜测。
+- 查询连接：`operation=query_connections`；按 `target.identifier`（可附 `pin`）或 `target.node` 查询当前 pin/拓扑节点及同网端点。
+- 查询图形边：`operation=query_edges`；`target.view` 为 `original`（初始化转换前快照）或 `current`。原始快照不存在时明确返回不可用，不从删除预览猜测。
 - 新增元件：`operation=create`；模板键和画布放入 `target`，参数、pins、label 放入 `changes`。
 - 修改元件：`operation=update`；目标放入 `target`，只允许 `changes.args`、`changes.pins`、`changes.label`。
 - 删除元件：`operation=delete`；先展示预览中的 `removed_keys` 和 `shared_net_peers`。

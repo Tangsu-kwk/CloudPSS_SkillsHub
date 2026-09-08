@@ -51,6 +51,9 @@ class CaseEditToolbox:
         self.compLabelDict, self.channelPinDict = {}, {}
         self.current_canvas = None
         self.topo = None
+        self.connection_edges_before = {}
+        self.connection_components_before = {}
+        self.connection_snapshot_available = False
 
     def setConfig(self, token=None, apiURL=None, username=None, model=None,
                   comLibName=None, iGraph=None):
@@ -105,6 +108,12 @@ class CaseEditToolbox:
                     key: json_value(comp) for key, comp in self.getAllComponents().items()
                     if getattr(comp, "shape", None) == "diagram-edge"
                 }
+                self.connection_components_before = {
+                    key: {"label": getattr(comp, "label", None),
+                          "pins": copy.deepcopy(getattr(comp, "pins", {}) or {})}
+                    for key, comp in self.getAllComponents().items()
+                    if getattr(comp, "shape", None) == "diagram-component"
+                }
                 removed_edges = self.deleteEdges()
                 after = self.refreshTopology()
                 if self._connection_groups(self.topo) != before_groups:
@@ -116,8 +125,11 @@ class CaseEditToolbox:
                 self.project = original
                 self.topo = None
                 self.connection_audit = {"mode": "uninitialized", "status": "conversion_failed"}
+                self.connection_edges_before = {}
+                self.connection_components_before = {}
                 raise
             self.project = original
+            self.connection_snapshot_available = True
             # Preserve host project/revision identity after full verification.
             original.revision.implements.diagram.cells.clear()
             original.revision.implements.diagram.cells.update(converted_cells)
@@ -163,6 +175,9 @@ class CaseEditToolbox:
             raise ValueError("Provide exactly one of revision or file")
         data = revision if file is None else json.loads(Path(file).read_text(encoding="utf-8"))
         self.project.revision = self.adapter.revision(data)
+        self.connection_edges_before = {}
+        self.connection_components_before = {}
+        self.connection_snapshot_available = False
         self.topo = None
         self.setCompLabelDict()
         self.setChannelPinDict()
@@ -178,6 +193,109 @@ class CaseEditToolbox:
 
     def getComponentsByRid(self, rid):
         return {k: c for k, c in self.getAllComponents().items() if getattr(c, "definition", None) == rid}
+
+    @staticmethod
+    def _page(items, offset, limit):
+        if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("offset >= 0 and 1 <= limit <= 100 required")
+        return {"total": len(items), "items": copy.deepcopy(items[offset:offset + limit]),
+                "offset": offset, "next_offset": offset + limit if offset + limit < len(items) else None}
+
+    def getConnections(self, identifier=None, *, pin=None, node=None, offset=0, limit=20):
+        """Read endpoints of selected networks; empty pins never form a net.
+
+        Uses the last refreshed topology when present, otherwise exact named
+        pins. Does not silently refresh topology or modify the working model.
+        """
+        if (identifier is None) == (node is None):
+            raise ValueError("Provide exactly one of identifier or node")
+        if node is not None and (not isinstance(node, str) or not node.strip()):
+            raise ValueError("node must be a nonempty exact pin name")
+        if pin is not None and (identifier is None or not isinstance(pin, str)):
+            raise ValueError("pin requires identifier and a string pin key")
+        key = self._resolve_comp_key(identifier) if identifier is not None else None
+        if key is not None:
+            comp = self.getComponentByKey(key)
+            if getattr(comp, "shape", None) != "diagram-component":
+                raise ValueError("identifier must select a component")
+            if pin is not None and pin not in comp.pins:
+                raise ValueError("Unknown component pin")
+        entries = []
+        topology = (self.topo or {}).get("components", {})
+        for cid, comp in sorted(self.getAllComponents().items()):
+            if getattr(comp, "shape", None) != "diagram-component":
+                continue
+            for p, name in sorted((getattr(comp, "pins", {}) or {}).items()):
+                top_node = topology.get('/' + cid, {}).get('pins', {}).get(p)
+                entries.append({"key": cid, "label": getattr(comp, "label", None),
+                                "canvas": getattr(comp, "canvas", None), "pin": p,
+                                "node": name, "topology_node": top_node})
+        def group(e):
+            if self.topo is not None:
+                n = e['topology_node']
+                return ('topology', str(n)) if n not in (None, '') else None
+            return ('named_pin', e['node']) if e['node'] else None
+        selected = [e for e in entries if (e['key'] == key and (pin is None or e['pin'] == pin))
+                    if key is not None] if key is not None else [e for e in entries if e['node'] == node]
+        groups = {group(e) for e in selected} - {None}
+        endpoints = {(e['key'], e['pin']) for e in selected}
+        items = [dict(e, selected=(e['key'], e['pin']) in endpoints)
+                 for e in entries if group(e) in groups or (e['key'], e['pin']) in endpoints]
+        return {"basis": "refreshed_topology" if self.topo is not None else "named_pins_only",
+                "physical_validation": False, "selected_pin_count": len(selected),
+                **self._page(items, offset, limit)}
+
+    def getDiagramEdges(self, identifier=None, *, view="original", offset=0, limit=20):
+        """Read current edges or immutable initialization provenance.
+
+        Incident edges include edge-to-edge branches, never traverse through
+        component interiors. Raw endpoints are retained; no invented pin ids.
+        """
+        if view not in {"original", "current"}:
+            raise ValueError("view must be original or current")
+        historical = view == "original"
+        if historical:
+            edges = self.connection_edges_before
+            components = self.connection_components_before
+        else:
+            edges = {k: json_value(c) for k, c in self.getAllComponents().items()
+                     if getattr(c, "shape", None) == "diagram-edge"}
+            components = {k: json_value(c) for k, c in self.getAllComponents().items()
+                          if getattr(c, "shape", None) == "diagram-component"}
+        available = self.connection_snapshot_available if historical else True
+        if not available:
+            return {"view": view, "snapshot_available": False, "reason": "No initialization edge snapshot in this session",
+                    **self._page([], offset, limit)}
+        selected = set(edges)
+        if identifier is not None:
+            if not isinstance(identifier, str) or not identifier.strip():
+                raise ValueError("identifier must be nonempty")
+            if identifier in edges or identifier in components:
+                key = identifier
+            else:
+                matches = [k for k, c in components.items() if c.get('label') == identifier]
+                if len(matches) != 1:
+                    raise ValueError("Unknown or ambiguous snapshot identifier; use exact key")
+                key = matches[0]
+            selected = {key} if key in edges else {k for k,e in edges.items()
+                        if any((e.get(s) or {}).get('cell') == key for s in ('source','target'))}
+            while True:
+                expanded = selected | {k for k,e in edges.items() if k in selected or
+                    any((e.get(s) or {}).get('cell') in selected for s in ('source','target'))}
+                for k in selected:
+                    expanded.update((edges[k].get(s) or {}).get('cell') for s in ('source','target')
+                                    if (edges[k].get(s) or {}).get('cell') in edges)
+                if expanded == selected: break
+                selected = expanded
+        rows=[]
+        for k in sorted(selected):
+            e=edges[k]
+            rows.append({"key":k,"canvas":e.get('canvas'),
+                         "source":copy.deepcopy(e.get('source',{})),"target":copy.deepcopy(e.get('target',{})),
+                         "historical":historical})
+        return {"view":view,"snapshot_available":available,
+                "meaning":"initialization snapshot, not current connectivity" if historical else "current diagram edges",
+                **self._page(rows,offset,limit)}
 
     def _resolve_comp_key(self, identifier):
         if not isinstance(identifier, str) or not identifier.strip():
