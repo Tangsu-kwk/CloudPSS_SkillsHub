@@ -1,0 +1,73 @@
+{
+  "504ac53586ea4234846c26b96da5e6d3": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "_newFaultResistor_3p_1",
+        "label": "任务故障",
+        "definition": "model/CloudPSS/_newFaultResistor_3p",
+        "canvas": "canvas_0",
+        "args": {
+          "I": "",
+          "Init": {
+            "source": "1000000000",
+            "ɵexp": ""
+          },
+          "Name": "任务故障",
+          "V": "",
+          "chg": {
+            "source": "1",
+            "ɵexp": ""
+          },
+          "fct": "0",
+          "fe": {
+            "source": "3.2",
+            "ɵexp": ""
+          },
+          "fs": {
+            "source": "3",
+            "ɵexp": ""
+          },
+          "ft": "7"
+        },
+        "pins": {
+          "0": "",
+          "1": ""
+        },
+        "position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "_newFaultResistor_3p_1"
+      ],
+      "shared_net_peers": []
+    }
+  },
+  "6dbd060c9f024442ac7475dcede17258": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "GND_1",
+        "label": "任务故障地",
+        "definition": "model/CloudPSS/GND",
+        "canvas": "canvas_0",
+        "args": {
+          "Name": ""
+        },
+        "pins": {
+          "0": ""
+        },
+        "position": {
+          "x": 80,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "GND_1"
+      ],
+      "shared_net_peers": []
+    }
+  }
+}

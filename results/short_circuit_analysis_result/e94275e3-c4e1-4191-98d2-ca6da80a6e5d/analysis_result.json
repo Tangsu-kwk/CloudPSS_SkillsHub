@@ -1,0 +1,893 @@
+{
+  "model": "test1-autotest-bus13",
+  "model_rid": "model/Makinohara_Shoko/test1-autotest",
+  "task_id": "e94275e3-c4e1-4191-98d2-ca6da80a6e5d",
+  "analysis": {
+    "base_voltage_kv": 500.0,
+    "base_voltage_source": "components.canvas_0_113.args.VBase",
+    "requested_base_voltage_kv": null,
+    "base_voltage_conflict": null,
+    "fault_bus": "bus16",
+    "target_fault_id": "canvas_0_965",
+    "fault_type": "three_phase_fault",
+    "normalized_current_unit": "kA",
+    "calibration_scale": 1.0,
+    "power_scale_mw": 1.0,
+    "voltage_scale_pu": 1.0,
+    "nominal_voltage_pu": 1.0,
+    "analysis_window": [
+      0.0,
+      15.0
+    ],
+    "prefault_window": [
+      0.0,
+      2.0
+    ],
+    "fault_window": [
+      2.0,
+      2.1
+    ],
+    "postfault_window": [
+      2.1,
+      15.0
+    ],
+    "steady_fault_window": [
+      2.02,
+      2.08
+    ],
+    "steady_fault_window_explicit": false,
+    "steady_fault_trim_fraction": 0.2,
+    "min_samples": 128
+  },
+  "thevenin": {
+    "enabled": true,
+    "input": {
+      "enabled": true,
+      "system_base_mva": 100.0,
+      "plant_rating_mva": null,
+      "reactive_compensation_mvar": 0.0,
+      "xr_ratio": null,
+      "weak_scr_threshold": 2.0,
+      "strong_scr_threshold": 3.0
+    },
+    "summary": {
+      "enabled": true,
+      "channel_count": 3,
+      "min_z_th_pu_magnitude": 0.01275046366283453,
+      "max_z_th_pu_magnitude": 0.014895955227700836,
+      "min_z_th_ohm_magnitude": 31.876159157086327,
+      "max_z_th_ohm_magnitude": 37.23988806925209,
+      "min_scr": null,
+      "min_escr": null,
+      "worst_grid_strength": "not_assessed"
+    }
+  },
+  "summary": {
+    "channel_count": 3,
+    "max_peak_current": 19.9767245568107,
+    "max_fault_rms_current": 9.05614547763475,
+    "max_steady_fault_rms_current": 8.92789014524267,
+    "max_short_circuit_mva": 7842.852043999253,
+    "max_steady_fault_short_circuit_mva": 7731.779667976894,
+    "min_scr": null,
+    "min_escr": null,
+    "worst_grid_strength": "not_assessed",
+    "methods": [
+      "direct_current_channel"
+    ]
+  },
+  "channels": [
+    {
+      "kind": "current",
+      "plot_index": 6,
+      "plot": "plot-6",
+      "channel": "#example:0",
+      "source": {
+        "kind": "fault_element",
+        "component_id": "canvas_0_965",
+        "definition": "model/CloudPSS/_newFaultResistor_3p",
+        "parameter_key": "I",
+        "channel": "#example",
+        "source": "components.canvas_0_965.args.I",
+        "current_unit": {
+          "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+          "component_name": "三相故障电阻",
+          "parameter_key": "I",
+          "parameter_name": "3 Phase Branch Current [kA]",
+          "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+          "raw_unit": "kA",
+          "normalized_unit": "kA",
+          "unit_source": "parameter.name",
+          "unit_scale_to_ka": 1.0
+        }
+      },
+      "unit": {
+        "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+        "component_name": "三相故障电阻",
+        "parameter_key": "I",
+        "parameter_name": "3 Phase Branch Current [kA]",
+        "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+        "raw_unit": "kA",
+        "normalized_unit": "kA",
+        "unit_source": "parameter.name",
+        "unit_scale_to_ka": 1.0,
+        "calibration_scale": 1.0,
+        "effective_current_scale": 1.0
+      },
+      "analysis": {
+        "method": "direct_current_channel",
+        "sample_count": 15001,
+        "t_start": 0.0,
+        "t_end": 14.999999999971712,
+        "fault_window_start": 2.000000000002008,
+        "fault_window_end": 2.0990000000017774,
+        "steady_fault_window_start": 2.0200000000019616,
+        "steady_fault_window_end": 2.079000000001824,
+        "steady_fault_window_sample_count": 60,
+        "steady_fault_window_policy": "trim_0.2_each_side",
+        "min_current": -10.65185322779016,
+        "max_current": 12.281341609899027,
+        "peak_current": 12.281341609899027,
+        "peak_current_time_s": 2.010000000001985,
+        "fault_peak_current": 12.281341609899027,
+        "steady_fault_peak_current": 11.81815937695484,
+        "prefault_rms_current": 2.8235913431893096e-07,
+        "fault_rms_current": 7.751772348455679,
+        "steady_fault_rms_current": 7.901901159247194,
+        "steady_to_fault_rms_ratio": 1.0193670304083973,
+        "postfault_rms_current": 0.1520296020493183,
+        "fault_to_prefault_rms_ratio": 27453591.565767724,
+        "postfault_to_prefault_rms_ratio": 538426.3640559171,
+        "dc_offset_estimate": 0.7986180870289812,
+        "short_circuit_mva": 6713.231778116376,
+        "steady_fault_short_circuit_mva": 6843.247142101774,
+        "thevenin": {
+          "method": "derived_from_short_circuit_capacity",
+          "formula": "Zth=Vll^2/Ssc; SCR=Ssc/Srated; ESCR=(Ssc-Qcomp)/Srated",
+          "base_voltage_kv": 500.0,
+          "system_base_mva": 100.0,
+          "z_base_ohm": 2500.0,
+          "z_th_ohm": {
+            "magnitude": 37.23988806925209,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "z_th_pu": {
+            "magnitude": 0.014895955227700836,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "short_circuit_capacity_mva": 6713.231778116376,
+          "plant_rating_mva": null,
+          "reactive_compensation_mvar": 0.0,
+          "scr": null,
+          "escr": null,
+          "weak_scr_threshold": 2.0,
+          "strong_scr_threshold": 3.0,
+          "grid_strength": "not_assessed",
+          "assessment": "Plant rating was not provided, so SCR/ESCR was not assessed."
+        }
+      }
+    },
+    {
+      "kind": "current",
+      "plot_index": 6,
+      "plot": "plot-6",
+      "channel": "#example:1",
+      "source": {
+        "kind": "fault_element",
+        "component_id": "canvas_0_965",
+        "definition": "model/CloudPSS/_newFaultResistor_3p",
+        "parameter_key": "I",
+        "channel": "#example",
+        "source": "components.canvas_0_965.args.I",
+        "current_unit": {
+          "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+          "component_name": "三相故障电阻",
+          "parameter_key": "I",
+          "parameter_name": "3 Phase Branch Current [kA]",
+          "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+          "raw_unit": "kA",
+          "normalized_unit": "kA",
+          "unit_source": "parameter.name",
+          "unit_scale_to_ka": 1.0
+        }
+      },
+      "unit": {
+        "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+        "component_name": "三相故障电阻",
+        "parameter_key": "I",
+        "parameter_name": "3 Phase Branch Current [kA]",
+        "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+        "raw_unit": "kA",
+        "normalized_unit": "kA",
+        "unit_source": "parameter.name",
+        "unit_scale_to_ka": 1.0,
+        "calibration_scale": 1.0,
+        "effective_current_scale": 1.0
+      },
+      "analysis": {
+        "method": "direct_current_channel",
+        "sample_count": 15001,
+        "t_start": 0.0,
+        "t_end": 14.999999999971712,
+        "fault_window_start": 2.000000000002008,
+        "fault_window_end": 2.0990000000017774,
+        "steady_fault_window_start": 2.0200000000019616,
+        "steady_fault_window_end": 2.079000000001824,
+        "steady_fault_window_sample_count": 60,
+        "steady_fault_window_policy": "trim_0.2_each_side",
+        "min_current": -19.9767245568107,
+        "max_current": 9.229958561236064,
+        "peak_current": 19.9767245568107,
+        "peak_current_time_s": 2.0080000000019895,
+        "fault_peak_current": 19.9767245568107,
+        "steady_fault_peak_current": 17.077267066262753,
+        "prefault_rms_current": 2.8244253126087387e-07,
+        "fault_rms_current": 9.05614547763475,
+        "steady_fault_rms_current": 8.92789014524267,
+        "steady_to_fault_rms_ratio": 0.9858377570558223,
+        "postfault_rms_current": 0.10991827278521178,
+        "fault_to_prefault_rms_ratio": 32063674.81981733,
+        "postfault_to_prefault_rms_ratio": 389170.3997075688,
+        "dc_offset_estimate": -3.936812659506452,
+        "short_circuit_mva": 7842.852043999253,
+        "steady_fault_short_circuit_mva": 7731.779667976894,
+        "thevenin": {
+          "method": "derived_from_short_circuit_capacity",
+          "formula": "Zth=Vll^2/Ssc; SCR=Ssc/Srated; ESCR=(Ssc-Qcomp)/Srated",
+          "base_voltage_kv": 500.0,
+          "system_base_mva": 100.0,
+          "z_base_ohm": 2500.0,
+          "z_th_ohm": {
+            "magnitude": 31.876159157086327,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "z_th_pu": {
+            "magnitude": 0.01275046366283453,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "short_circuit_capacity_mva": 7842.852043999253,
+          "plant_rating_mva": null,
+          "reactive_compensation_mvar": 0.0,
+          "scr": null,
+          "escr": null,
+          "weak_scr_threshold": 2.0,
+          "strong_scr_threshold": 3.0,
+          "grid_strength": "not_assessed",
+          "assessment": "Plant rating was not provided, so SCR/ESCR was not assessed."
+        }
+      }
+    },
+    {
+      "kind": "current",
+      "plot_index": 6,
+      "plot": "plot-6",
+      "channel": "#example:2",
+      "source": {
+        "kind": "fault_element",
+        "component_id": "canvas_0_965",
+        "definition": "model/CloudPSS/_newFaultResistor_3p",
+        "parameter_key": "I",
+        "channel": "#example",
+        "source": "components.canvas_0_965.args.I",
+        "current_unit": {
+          "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+          "component_name": "三相故障电阻",
+          "parameter_key": "I",
+          "parameter_name": "3 Phase Branch Current [kA]",
+          "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+          "raw_unit": "kA",
+          "normalized_unit": "kA",
+          "unit_source": "parameter.name",
+          "unit_scale_to_ka": 1.0
+        }
+      },
+      "unit": {
+        "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+        "component_name": "三相故障电阻",
+        "parameter_key": "I",
+        "parameter_name": "3 Phase Branch Current [kA]",
+        "parameter_description": "三相电阻故障电流  <br/> 此处输入电阻端电流量测信号的标签（3×1维），比如Iabc",
+        "raw_unit": "kA",
+        "normalized_unit": "kA",
+        "unit_source": "parameter.name",
+        "unit_scale_to_ka": 1.0,
+        "calibration_scale": 1.0,
+        "effective_current_scale": 1.0
+      },
+      "analysis": {
+        "method": "direct_current_channel",
+        "sample_count": 15001,
+        "t_start": 0.0,
+        "t_end": 14.999999999971712,
+        "fault_window_start": 2.000000000002008,
+        "fault_window_end": 2.0990000000017774,
+        "steady_fault_window_start": 2.0200000000019616,
+        "steady_fault_window_end": 2.079000000001824,
+        "steady_fault_window_sample_count": 60,
+        "steady_fault_window_policy": "trim_0.2_each_side",
+        "min_current": -9.21340477964574,
+        "max_current": 19.437529656637512,
+        "peak_current": 19.437529656637512,
+        "peak_current_time_s": 2.0050000000019965,
+        "fault_peak_current": 19.437529656637512,
+        "steady_fault_peak_current": 16.622684331247143,
+        "prefault_rms_current": 2.822791315577772e-07,
+        "fault_rms_current": 8.789253987421755,
+        "steady_fault_rms_current": 8.65296892768415,
+        "steady_to_fault_rms_ratio": 0.9844941265854141,
+        "postfault_rms_current": 0.008911770802089361,
+        "fault_to_prefault_rms_ratio": 31136747.300155133,
+        "postfault_to_prefault_rms_ratio": 31570.774477408686,
+        "dc_offset_estimate": 3.138194572477466,
+        "short_circuit_mva": 7611.717233420913,
+        "steady_fault_short_circuit_mva": 7493.690909531866,
+        "thevenin": {
+          "method": "derived_from_short_circuit_capacity",
+          "formula": "Zth=Vll^2/Ssc; SCR=Ssc/Srated; ESCR=(Ssc-Qcomp)/Srated",
+          "base_voltage_kv": 500.0,
+          "system_base_mva": 100.0,
+          "z_base_ohm": 2500.0,
+          "z_th_ohm": {
+            "magnitude": 32.844099739060226,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "z_th_pu": {
+            "magnitude": 0.01313763989562409,
+            "real": null,
+            "imag": null,
+            "xr_ratio": null
+          },
+          "short_circuit_capacity_mva": 7611.717233420913,
+          "plant_rating_mva": null,
+          "reactive_compensation_mvar": 0.0,
+          "scr": null,
+          "escr": null,
+          "weak_scr_threshold": 2.0,
+          "strong_scr_threshold": 3.0,
+          "grid_strength": "not_assessed",
+          "assessment": "Plant rating was not provided, so SCR/ESCR was not assessed."
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "model_parameters": "CloudPSS SDK Model.toJSON and Model.getAllComponents",
+    "waveform": "CloudPSS SDK EMTResult.getPlotChannelData",
+    "metrics": "short-circuit-analysis Skill runtime"
+  },
+  "waveform_files": {
+    "selected": {
+      "path": "waveform.csv",
+      "channels": [
+        "#example:0",
+        "#example:1",
+        "#example:2"
+      ],
+      "sample_count": 15001,
+      "time_start_s": 0.0,
+      "time_end_s": 14.999999999971712,
+      "time_unit": "s",
+      "value_unit": "kA",
+      "normalized": true
+    },
+    "raw": {
+      "directory": "raw_waveforms",
+      "channel_count": 56,
+      "normalized": false,
+      "channels": [
+        {
+          "channel": "#Gen31.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen31.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen32.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen32.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen33.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen33.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen34.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen34.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen35.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen35.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen36.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen36.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen38.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen38.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen39.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen39.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen30.wr:0",
+          "plot_index": 0,
+          "plot": "plot-0",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen30.wr_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen31.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen31.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen32.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen32.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen33.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen33.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen34.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen34.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen35.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen35.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen36.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen36.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen37.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen37.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen38.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen38.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen39.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen39.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen30.LA:0",
+          "plot_index": 1,
+          "plot": "plot-1",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen30.LA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen31.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen31.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen32.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen32.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen33.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen33.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen34.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen34.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen35.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen35.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen36.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen36.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen37.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen37.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen38.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen38.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen39.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen39.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "Gen30.RA:0",
+          "plot_index": 2,
+          "plot": "plot-2",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/Gen30.RA_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen31.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen31.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen32.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen32.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen33.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen33.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen34.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen34.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen35.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen35.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen36.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen36.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen38.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen38.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen39.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen39.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen30.VT:0",
+          "plot_index": 3,
+          "plot": "plot-3",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen30.VT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen31.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen31.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen32.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen32.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen33.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen33.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen34.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen34.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen35.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen35.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen36.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen36.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen38.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen38.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen39.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen39.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen30.IT:0",
+          "plot_index": 4,
+          "plot": "plot-4",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen30.IT_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.Ib:0",
+          "plot_index": 5,
+          "plot": "plot-5",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.Ib_0.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.Ib:1",
+          "plot_index": 5,
+          "plot": "plot-5",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.Ib_1.csv",
+          "unit": null
+        },
+        {
+          "channel": "#Gen37.Ib:2",
+          "plot_index": 5,
+          "plot": "plot-5",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#Gen37.Ib_2.csv",
+          "unit": null
+        },
+        {
+          "channel": "#example:0",
+          "plot_index": 6,
+          "plot": "plot-6",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#example_0.csv",
+          "unit": {
+            "raw_unit": "kA",
+            "unit_source": "parameter.name",
+            "definition_rid": "model/CloudPSS/_newFaultResistor_3p"
+          }
+        },
+        {
+          "channel": "#example:1",
+          "plot_index": 6,
+          "plot": "plot-6",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#example_1.csv",
+          "unit": {
+            "raw_unit": "kA",
+            "unit_source": "parameter.name",
+            "definition_rid": "model/CloudPSS/_newFaultResistor_3p"
+          }
+        },
+        {
+          "channel": "#example:2",
+          "plot_index": 6,
+          "plot": "plot-6",
+          "sample_count": 15001,
+          "csv_path": "raw_waveforms/#example_2.csv",
+          "unit": {
+            "raw_unit": "kA",
+            "unit_source": "parameter.name",
+            "definition_rid": "model/CloudPSS/_newFaultResistor_3p"
+          }
+        }
+      ],
+      "index": "raw_waveforms/index.json"
+    }
+  },
+  "artifacts": {
+    "waveform_summary": {
+      "path": "waveform_summary.json",
+      "channel_count": 3
+    },
+    "summary_csv": {
+      "path": "summary.csv",
+      "row_count": 3,
+      "columns": [
+        "channel",
+        "method",
+        "component_id",
+        "definition_rid",
+        "raw_current_unit",
+        "unit_source",
+        "unit_scale_to_ka",
+        "calibration_scale",
+        "effective_current_scale",
+        "peak_current_ka",
+        "fault_rms_current_ka",
+        "steady_fault_rms_current_ka",
+        "postfault_rms_current_ka",
+        "short_circuit_capacity_mva",
+        "steady_fault_short_circuit_capacity_mva",
+        "z_th_ohm",
+        "z_th_pu",
+        "scr",
+        "escr",
+        "grid_strength"
+      ]
+    },
+    "analysis_report": {
+      "path": "analysis_report.md",
+      "channel_count": 3
+    },
+    "analysis_code": {
+      "path": "analysis_code.py",
+      "sha256": "2966d856218dccb231371f1658f39e835a5dc666a8e8f567bb29e83e0c532fcf",
+      "self_contained": true
+    }
+  }
+}

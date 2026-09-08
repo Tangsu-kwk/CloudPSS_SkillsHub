@@ -1,0 +1,4 @@
+{
+  "fresh": "02-resume",
+  "message": "请在模型 model/Makinohara_Shoko/IEEE39-test1 的 canvas_0 上新增一个加法器，标签叫“继续验收加法器”，A系数为1、B系数为-1、其他系数为0，所有引脚先留空。先给我方案，不保存、不运行仿真。"
+}

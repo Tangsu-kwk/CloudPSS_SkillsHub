@@ -1,0 +1,91 @@
+{
+  "1069f73dc7be409dbf94d26df8acf92d": {
+    "operation": "update",
+    "plan": {
+      "before": {
+        "key": "_newExpLoad_3p_1",
+        "label": "批量负荷甲",
+        "definition": "model/CloudPSS/_newExpLoad_3p",
+        "canvas": "canvas_0",
+        "args": {
+          "Iname": "",
+          "Irmsname": "",
+          "KPF": 0,
+          "KQF": 0,
+          "NIM": "1",
+          "NP": 2,
+          "NQ": 2,
+          "Name": "批量负荷甲",
+          "Pname": "",
+          "Qname": "",
+          "Vi": 1,
+          "f": {
+            "source": "60",
+            "ɵexp": ""
+          },
+          "p": {
+            "source": "4",
+            "ɵexp": ""
+          },
+          "q": {
+            "source": "0.8",
+            "ɵexp": ""
+          },
+          "v": {
+            "source": "500",
+            "ɵexp": ""
+          }
+        },
+        "pins": {
+          "0": "bus16"
+        },
+        "position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "component": {
+        "key": "_newExpLoad_3p_1",
+        "label": "临时取消标签",
+        "definition": "model/CloudPSS/_newExpLoad_3p",
+        "canvas": "canvas_0",
+        "args": {
+          "Iname": "",
+          "Irmsname": "",
+          "KPF": 0,
+          "KQF": 0,
+          "NIM": "1",
+          "NP": 2,
+          "NQ": 2,
+          "Name": "批量负荷甲",
+          "Pname": "",
+          "Qname": "",
+          "Vi": 1,
+          "f": {
+            "source": "60",
+            "ɵexp": ""
+          },
+          "p": {
+            "source": "4",
+            "ɵexp": ""
+          },
+          "q": {
+            "source": "0.8",
+            "ɵexp": ""
+          },
+          "v": {
+            "source": "500",
+            "ɵexp": ""
+          }
+        },
+        "pins": {
+          "0": "bus16"
+        },
+        "position": {
+          "x": 20,
+          "y": 20
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "offline": true,
+  "templates": [
+    {
+      "template": "_NewVoltageMeter",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newChannel",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newBreaker_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newDropGen",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newShuntLC_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newConstant",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newFaultResistor_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "GND",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newACVoltageSource_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newBus_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newExpLoad_3p",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newStepGen",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newTransformer_3p2w",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_PSASP_AVR_11to12",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newGain",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "SyncGeneratorRouter",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "TransmissionLine",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "Harmonic_continuous_injection",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "Harmonic_continuous_injection_I",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "Harmonic_continuous_injection_V",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    },
+    {
+      "template": "_newSum",
+      "catalog": "passed",
+      "create_update_read_delete": "passed",
+      "scope": "selected parameter and pin, SDK structure only"
+    }
+  ],
+  "regressions": [
+    "preview fidelity/isolation/staleness/replay/tamper/cancel",
+    "invalid field rejection",
+    "expression preservation",
+    "canvas commit",
+    "incident edge deletion",
+    "source save refusal",
+    "create-only persistence",
+    "save/readback failure distinction",
+    "list/int and dict/key topology configs"
+  ],
+  "cloud_saved": false,
+  "simulation_run": false
+}

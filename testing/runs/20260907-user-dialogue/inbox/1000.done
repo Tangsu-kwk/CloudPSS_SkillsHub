@@ -1,0 +1,1 @@
+{"fresh":"model-to-sim","message":"请检查模型 model/Makinohara_Shoko/IEEE39-test1 中现有的三相故障元件 newFaultResistance_3p-4，告诉我它的真实 key、故障开始和结束时间、故障类型、初始状态和各相故障电阻。只查询，不修改。"}

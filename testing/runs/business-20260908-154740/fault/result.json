@@ -1,0 +1,17 @@
+{
+  "task": "新增故障、缺失通道与短路分析衔接",
+  "key": "fault",
+  "status": "structural_pass_analysis_pending_review",
+  "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\fault",
+  "cloud_saves": [
+    "model/Makinohara_Shoko/test1-autotest-20260908-154740-fault-edited",
+    "model/Makinohara_Shoko/test1-autotest-20260908-154740-fault-deleted"
+  ],
+  "create": "verified",
+  "update": "verified",
+  "topology": "refreshed_not_physical_validation",
+  "edited_cloud": "verified",
+  "analysis": "inspect_record_for_readiness_or_result",
+  "delete": "verified",
+  "source_unchanged": true
+}

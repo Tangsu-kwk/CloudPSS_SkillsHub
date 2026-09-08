@@ -1,0 +1,296 @@
+[
+  {
+    "template": "_NewVoltageMeter",
+    "name": "验收电压表",
+    "snapshots": [
+      {
+        "file": "0100-model.json",
+        "added": {},
+        "modified_existing": []
+      },
+      {
+        "file": "0101-model.json",
+        "added": {
+          "_NewVoltageMeter_1": {
+            "args": {
+              "Dim": "3",
+              "V": "#qa_voltage"
+            },
+            "canvas": "canvas_0",
+            "context": {},
+            "definition": "model/CloudPSS/_NewVoltageMeter",
+            "flip": false,
+            "id": "_NewVoltageMeter_1",
+            "label": "验收电压表",
+            "pins": {
+              "0": ""
+            },
+            "position": {
+              "x": 285,
+              "y": 20
+            },
+            "props": {
+              "enabled": true,
+              "outlineLevel": 0
+            },
+            "shape": "diagram-component",
+            "size": {
+              "height": 50,
+              "width": 30
+            },
+            "style": {},
+            "zIndex": 32
+          }
+        },
+        "modified_existing": [
+          "component_new_channel_1"
+        ]
+      },
+      {
+        "file": "0103-model.json",
+        "added": {
+          "_NewVoltageMeter_1": {
+            "args": {
+              "Dim": "3",
+              "V": "#qa_voltage"
+            },
+            "canvas": "canvas_0",
+            "context": {},
+            "definition": "model/CloudPSS/_NewVoltageMeter",
+            "flip": false,
+            "id": "_NewVoltageMeter_1",
+            "label": "验收电压表",
+            "pins": {
+              "0": ""
+            },
+            "position": {
+              "x": 285,
+              "y": 20
+            },
+            "props": {
+              "enabled": true,
+              "outlineLevel": 0
+            },
+            "shape": "diagram-component",
+            "size": {
+              "height": 50,
+              "width": 30
+            },
+            "style": {},
+            "zIndex": 32
+          }
+        },
+        "modified_existing": []
+      },
+      {
+        "file": "0104-model.json",
+        "added": {
+          "_NewVoltageMeter_1": {
+            "args": {
+              "Dim": "3",
+              "V": "#qa_voltage_updated"
+            },
+            "canvas": "canvas_0",
+            "context": {},
+            "definition": "model/CloudPSS/_NewVoltageMeter",
+            "flip": false,
+            "id": "_NewVoltageMeter_1",
+            "label": "验收电压表",
+            "pins": {
+              "0": ""
+            },
+            "position": {
+              "x": 285,
+              "y": 20
+            },
+            "props": {
+              "enabled": true,
+              "outlineLevel": 0
+            },
+            "shape": "diagram-component",
+            "size": {
+              "height": 50,
+              "width": 30
+            },
+            "style": {},
+            "zIndex": 32
+          }
+        },
+        "modified_existing": []
+      },
+      {
+        "file": "0106-model.json",
+        "added": {
+          "_NewVoltageMeter_1": {
+            "args": {
+              "Dim": "3",
+              "V": "#qa_voltage_updated"
+            },
+            "canvas": "canvas_0",
+            "context": {},
+            "definition": "model/CloudPSS/_NewVoltageMeter",
+            "flip": false,
+            "id": "_NewVoltageMeter_1",
+            "label": "验收电压表",
+            "pins": {
+              "0": ""
+            },
+            "position": {
+              "x": 285,
+              "y": 20
+            },
+            "props": {
+              "enabled": true,
+              "outlineLevel": 0
+            },
+            "shape": "diagram-component",
+            "size": {
+              "height": 50,
+              "width": 30
+            },
+            "style": {},
+            "zIndex": 32
+          }
+        },
+        "modified_existing": []
+      }
+    ]
+  },
+  {
+    "template": "_newChannel",
+    "name": "验收输出通道",
+    "snapshots": [
+      {
+        "file": "0110-model.json",
+        "added": {
+          "_NewVoltageMeter_1": {
+            "args": {
+              "Dim": "3",
+              "V": "#qa_voltage_updated"
+            },
+            "canvas": "canvas_0",
+            "context": {},
+            "definition": "model/CloudPSS/_NewVoltageMeter",
+            "flip": false,
+            "id": "_NewVoltageMeter_1",
+            "label": "验收电压表",
+            "pins": {
+              "0": ""
+            },
+            "position": {
+              "x": 285,
+              "y": 20
+            },
+            "props": {
+              "enabled": true,
+              "outlineLevel": 0
+            },
+            "shape": "diagram-component",
+            "size": {
+              "height": 50,
+              "width": 30
+            },
+            "style": {},
+            "zIndex": 32
+          }
+        },
+        "modified_existing": []
+      }
+    ]
+  },
+  {
+    "template": "_newBreaker_3p",
+    "name": "验收断路器",
+    "snapshots": []
+  },
+  {
+    "template": "_newDropGen",
+    "name": "验收陷落信号",
+    "snapshots": []
+  },
+  {
+    "template": "_newShuntLC_3p",
+    "name": "验收并联补偿",
+    "snapshots": []
+  },
+  {
+    "template": "_newConstant",
+    "name": "验收常量",
+    "snapshots": []
+  },
+  {
+    "template": "_newFaultResistor_3p",
+    "name": "验收接地故障",
+    "snapshots": []
+  },
+  {
+    "template": "GND",
+    "name": "验收接地点",
+    "snapshots": []
+  },
+  {
+    "template": "_newACVoltageSource_3p",
+    "name": "验收交流源",
+    "snapshots": []
+  },
+  {
+    "template": "_newBus_3p",
+    "name": "验收母线",
+    "snapshots": []
+  },
+  {
+    "template": "_newExpLoad_3p",
+    "name": "验收静态负荷",
+    "snapshots": []
+  },
+  {
+    "template": "_newStepGen",
+    "name": "验收阶跃信号",
+    "snapshots": []
+  },
+  {
+    "template": "_newTransformer_3p2w",
+    "name": "验收变压器",
+    "snapshots": []
+  },
+  {
+    "template": "_PSASP_AVR_11to12",
+    "name": "验收励磁调节器",
+    "snapshots": []
+  },
+  {
+    "template": "_newGain",
+    "name": "验收增益",
+    "snapshots": []
+  },
+  {
+    "template": "SyncGeneratorRouter",
+    "name": "验收同步机",
+    "snapshots": []
+  },
+  {
+    "template": "TransmissionLine",
+    "name": "验收线路",
+    "snapshots": []
+  },
+  {
+    "template": "Harmonic_continuous_injection",
+    "name": "验收谐波阻抗",
+    "snapshots": []
+  },
+  {
+    "template": "Harmonic_continuous_injection_I",
+    "name": "验收谐波电流",
+    "snapshots": []
+  },
+  {
+    "template": "Harmonic_continuous_injection_V",
+    "name": "验收谐波电压",
+    "snapshots": []
+  },
+  {
+    "template": "_newSum",
+    "name": "验收加法器",
+    "snapshots": []
+  }
+]

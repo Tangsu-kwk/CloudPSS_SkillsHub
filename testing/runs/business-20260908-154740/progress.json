@@ -1,0 +1,73 @@
+[
+  {
+    "task": "母线—线路—负荷支路",
+    "key": "feeder",
+    "status": "failed_or_blocked",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\feeder",
+    "cloud_saves": [],
+    "phase": "create-confirm",
+    "error": "任务负荷: pin 0 does not connect qa_feeder",
+    "source_unchanged": true
+  },
+  {
+    "task": "批量负荷与参照参数修改",
+    "key": "batch-load",
+    "status": "structural_pass",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\batch-load",
+    "cloud_saves": [
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-batch-load-edited",
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-batch-load-deleted"
+    ],
+    "create": "verified",
+    "update": "verified",
+    "topology": "refreshed_not_physical_validation",
+    "edited_cloud": "verified",
+    "cancel": "verified",
+    "delete": "verified",
+    "source_unchanged": true
+  },
+  {
+    "task": "变压器两侧母线接线",
+    "key": "transformer",
+    "status": "failed_or_blocked",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\transformer",
+    "cloud_saves": [],
+    "phase": "create-preview",
+    "error": "Conversation run failed for id=b72bcd21-5650-4482-a98c-fe8cdca79205: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"The `reasoning_content` in the thinking mode must be passed back to the API.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "source_unchanged": true
+  },
+  {
+    "task": "常量—增益—输出通道及取消修改",
+    "key": "control",
+    "status": "structural_pass",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\control",
+    "cloud_saves": [
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-edited",
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-deleted"
+    ],
+    "create": "verified",
+    "update": "verified",
+    "topology": "refreshed_not_physical_validation",
+    "edited_cloud": "verified",
+    "cancel": "verified",
+    "delete": "verified",
+    "source_unchanged": true
+  },
+  {
+    "task": "新增故障、缺失通道与短路分析衔接",
+    "key": "fault",
+    "status": "structural_pass_analysis_pending_review",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\fault",
+    "cloud_saves": [
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-fault-edited",
+      "model/Makinohara_Shoko/test1-autotest-20260908-154740-fault-deleted"
+    ],
+    "create": "verified",
+    "update": "verified",
+    "topology": "refreshed_not_physical_validation",
+    "edited_cloud": "verified",
+    "analysis": "inspect_record_for_readiness_or_result",
+    "delete": "verified",
+    "source_unchanged": true
+  }
+]

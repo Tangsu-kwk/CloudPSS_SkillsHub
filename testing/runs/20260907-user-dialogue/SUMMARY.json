@@ -1,0 +1,12 @@
+{
+  "status": "blocked_external",
+  "reason": "DeepSeek HTTP 402 Insufficient Balance",
+  "templates_created": 21,
+  "full_selected_crud_checks_passed": 19,
+  "partial": 1,
+  "update_blocked": 1,
+  "topology": "blocked_runtime_configs_list_dict_mismatch",
+  "batch": "not_verified",
+  "last_model": "0303-model.json",
+  "successful_turns": 110
+}

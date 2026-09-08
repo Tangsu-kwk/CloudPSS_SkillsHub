@@ -1,0 +1,13 @@
+{
+  "task_id": "f53a1bed-4310-4f1d-a271-647e6325bed8",
+  "status": "complete",
+  "model_rid": "model/Makinohara_Shoko/test1-autotest",
+  "model_parameters": "model_parameters.json",
+  "analysis_result": "analysis_result.json",
+  "waveform": "waveform.csv",
+  "waveform_summary": "waveform_summary.json",
+  "summary_csv": "summary.csv",
+  "analysis_report": "analysis_report.md",
+  "analysis_code": "analysis_code.py",
+  "raw_waveforms": "raw_waveforms"
+}

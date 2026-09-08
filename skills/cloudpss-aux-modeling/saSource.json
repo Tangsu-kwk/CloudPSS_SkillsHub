@@ -1,0 +1,982 @@
+{
+    "_NewVoltageMeter": {
+        "args": {
+            "Dim": "3",
+            "V": "#vac"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_NewVoltageMeter",
+        "flip": false,
+        "id": "canvas_0_1035",
+        "label": "newVoltageMeter-1",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 285,
+            "y": 20
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 50,
+            "width": 30
+        },
+        "style": {},
+        "zIndex": 32
+    },
+    "_newChannel": {
+        "args": {
+            "Dim": {
+                "source": "3",
+                "\u0275exp": ""
+            },
+            "Freq": {
+                "source": "1000",
+                "\u0275exp": ""
+            },
+            "Name": "vac"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newChannel",
+        "flip": false,
+        "id": "canvas_0_1042",
+        "label": "newChannel-13",
+        "pins": {
+            "0": "#vac"
+        },
+        "position": {
+            "x": 50,
+            "y": -210
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 20,
+            "width": 110
+        },
+        "style": {},
+        "zIndex": 34
+    },
+    "_newBreaker_3p": {
+        "args": {
+            "Close": "0.005",
+            "I": "",
+            "Init": "0",
+            "Init_A": "0",
+            "Init_B": "0",
+            "Init_C": "0",
+            "Name": "",
+            "Open": "1000000",
+            "Status": "",
+            "V": "",
+            "bot": "0",
+            "ccl": "0",
+            "ctrlType": "0",
+            "ctrlsignal": "",
+            "ctrlsignal_A": "",
+            "ctrlsignal_B": "",
+            "ctrlsignal_C": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newBreaker_3p",
+        "flip": false,
+        "id": "component_new_breaker_3_p_1",
+        "label": "\u4e09\u76f8\u65ad\u8def\u56681",
+        "pins": {
+            "0": "",
+            "1": ""
+        },
+        "position": {
+            "x": 295,
+            "y": 175
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 50
+        },
+        "style": {},
+        "zIndex": 7
+    },
+    "_newDropGen": {
+        "args": {
+            "Drop": "0",
+            "INIT": "1",
+            "Name": "",
+            "T1": "0.4",
+            "T2": "0.5"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newDropGen",
+        "flip": false,
+        "id": "component_new_drop_gen_1",
+        "label": "\u9677\u843d\u53d1\u751f\u56681",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 580,
+            "y": 485
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 60,
+            "width": 100
+        },
+        "style": {},
+        "zIndex": 21
+    },
+    "_newShuntLC_3p": {
+        "args": {
+            "I": "",
+            "Irms": "",
+            "NIM": "1",
+            "Name": "",
+            "P": "",
+            "Q": "",
+            "freq": "50",
+            "s": "1",
+            "v": "110"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newShuntLC_3p",
+        "flip": false,
+        "id": "component_new_shunt_lc_3_p_1",
+        "label": "\u5e76\u8054\u7535\u5bb9/\u7535\u6297\u56681",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 605,
+            "y": 165
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 60,
+            "width": 30
+        },
+        "style": {},
+        "zIndex": 10
+    },
+    "_newConstant": {
+        "args": {
+            "Name": "",
+            "Value": "0"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newConstant",
+        "flip": false,
+        "id": "component_new_constant_1",
+        "label": "\u5e38\u91cf\u8f93\u51651",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 445,
+            "y": 640
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 20,
+            "width": 90
+        },
+        "style": {},
+        "zIndex": 25
+    },
+    "_newFaultResistor_3p": {
+        "args": {
+            "I": "",
+            "Init": {
+                "source": "1000000000",
+                "\u0275exp": ""
+            },
+            "Name": "",
+            "V": "",
+            "chg": {
+                "source": "0.01",
+                "\u0275exp": ""
+            },
+            "fct": "0",
+            "fe": {
+                "source": "3.1",
+                "\u0275exp": ""
+            },
+            "fs": {
+                "source": "3",
+                "\u0275exp": ""
+            },
+            "ft": "1"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newFaultResistor_3p",
+        "flip": false,
+        "id": "canvas_0_1150",
+        "label": "newFaultResistance_3p-1",
+        "pins": {
+            "0": "",
+            "1": ""
+        },
+        "position": {
+            "x": 140,
+            "y": 15
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 50
+        },
+        "style": {},
+        "zIndex": 36
+    },
+    "GND": {
+        "angle": 270,
+        "args": {
+            "Name": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/GND",
+        "flip": false,
+        "id": "canvas_0_1152",
+        "label": "newGND-2",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 85,
+            "y": 80
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 50
+        },
+        "style": {},
+        "zIndex": 35
+    },
+    "_newACVoltageSource_3p": {
+        "args": {
+            "BusType": "2",
+            "Dr": 0.2,
+            "Fault": "0",
+            "Func": "1",
+            "Grnd": "1",
+            "I": "",
+            "Init": "0",
+            "Irms": "",
+            "Name": "",
+            "P": "",
+            "Ph": 0,
+            "Q": "",
+            "R": 0,
+            "Tconstant": 0.05,
+            "Tfe": 0.4,
+            "Tfs": 0.2,
+            "Tramp": 0.06,
+            "V": "",
+            "Vm": 110,
+            "Vrms": "",
+            "f": 50,
+            "pf_P": 225,
+            "pf_Q": 100,
+            "pf_Qmax": 200,
+            "pf_Qmin": -200,
+            "pf_Theta": 0,
+            "pf_V": 1,
+            "pf_Vmax": 10,
+            "pf_Vmin": 0.001
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newACVoltageSource_3p",
+        "flip": false,
+        "id": "component_new_ac_voltage_source_3_p_1",
+        "label": "\u4e09\u76f8\u4ea4\u6d41\u7535\u538b\u6e901",
+        "pins": {
+            "0": "",
+            "1": "\u540c\u6b65\u673aA"
+        },
+        "position": {
+            "x": 630,
+            "y": 260
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 90
+        },
+        "style": {},
+        "zIndex": 5
+    },
+    "_newBus_3p": {
+        "args": {
+            "Freq": 50,
+            "Name": "",
+            "RampingTime": 0.06,
+            "Theta": 0,
+            "V": 1,
+            "VBase": 110,
+            "Vabc": "",
+            "Vrms": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newBus_3p",
+        "flip": false,
+        "id": "component_new_bus_3_p_4",
+        "label": "\u4e09\u76f8\u4ea4\u6d41\u6bcd\u7ebf4",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 315,
+            "y": 65
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 40,
+            "width": 100
+        },
+        "style": {},
+        "zIndex": 10
+    },
+    "_newExpLoad_3p": {
+        "args": {
+            "Iname": "",
+            "Irmsname": "",
+            "KPF": 0,
+            "KQF": 0,
+            "NIM": "1",
+            "NP": 2,
+            "NQ": 2,
+            "Name": "",
+            "Pname": "",
+            "Qname": "",
+            "Vi": 1,
+            "f": 50,
+            "p": 60,
+            "q": 20,
+            "v": 110
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newExpLoad_3p",
+        "flip": false,
+        "id": "component_new_exp_load_3_p_1",
+        "label": "\u9759\u6001\u8d1f\u8f7d1",
+        "pins": {
+            "0": ""
+        },
+        "position": {
+            "x": 370,
+            "y": 255
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 60,
+            "width": 30
+        },
+        "style": {},
+        "zIndex": 30
+    },
+    "_newStepGen": {
+        "args": {
+            "Name": "",
+            "Time": 1,
+            "V0": 0,
+            "V1": 1
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newStepGen",
+        "flip": false,
+        "id": "component_new_step_gen_2",
+        "label": "\u9636\u8dc3\u53d1\u751f\u56682",
+        "pins": {
+            "0": "@L2N"
+        },
+        "position": {
+            "x": 35,
+            "y": 395
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 60,
+            "width": 100
+        },
+        "style": {},
+        "zIndex": 29
+    },
+    "_newTransformer_3p2w": {
+        "args": {
+            "Enab": "0",
+            "Flux": "",
+            "Gm": 0,
+            "I1": "",
+            "I1p": "",
+            "I1rms": "",
+            "I2": "",
+            "I2p": "",
+            "I2rms": "",
+            "Im": "",
+            "Im1": 0.4,
+            "InitTap": 1,
+            "Lead": "1",
+            "NIM": "1",
+            "Name": "",
+            "P1": "",
+            "P2": "",
+            "Q1": "",
+            "Q2": "",
+            "Rl": 0,
+            "Rn1": 0.01,
+            "Rn2": 0.01,
+            "Sat": "1",
+            "Tap": "0",
+            "Tdc": 0,
+            "Tmva": 100,
+            "Txk": 0,
+            "V1": 10,
+            "V2": 110,
+            "Xac": 0.2,
+            "Xknee": 1.17,
+            "Xl": 0.1,
+            "YD1": "0",
+            "YD2": "1",
+            "f": 50
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newTransformer_3p2w",
+        "flip": false,
+        "id": "component_new_transformer_3_p_2_w_1",
+        "label": "\u4e09\u76f8\u53cc\u7ed5\u7ec4\u53d8\u538b\u56681",
+        "pins": {
+            "0": "",
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
+        "position": {
+            "x": 235,
+            "y": 180
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 60,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 2
+    },
+    "_PSASP_AVR_11to12": {
+        "args": {
+            "Enab_Loop_Iter": "0",
+            "K": "56.25",
+            "KA": "14.2",
+            "KC": "0.093",
+            "KF": "0",
+            "Kv": "1",
+            "Max_Loop_Iter": "15",
+            "Model": "12",
+            "OverExcitationEnabled": "0",
+            "PSSPos": "0",
+            "T1": "1",
+            "T2": "10",
+            "T3": "0.04",
+            "T4": "0.03",
+            "TA": "0.02",
+            "TF": "1",
+            "TR": "0.02",
+            "Tol_Loop_Iter": "1e-7",
+            "UnderExcitationEnabled": "0",
+            "VAMAX": "10",
+            "VAMIN": "-10",
+            "VRMAX": "11.2",
+            "VRMIN": "-10",
+            "Vao": "",
+            "Vfo": "",
+            "Vro": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_PSASP_AVR_11to12",
+        "flip": false,
+        "id": "component_psasp_avr_11_to_12_1",
+        "label": "PSASP_AVR_11~121",
+        "pins": {
+            "0": "",
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": "",
+            "6": "",
+            "7": ""
+        },
+        "position": {
+            "x": 320,
+            "y": 720
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 120,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 30
+    },
+    "_newGain": {
+        "args": {
+            "G": 1,
+            "Name": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newGain",
+        "flip": false,
+        "id": "component_new_gain_1",
+        "label": "\u589e\u76ca1",
+        "pins": {
+            "0": "",
+            "1": ""
+        },
+        "position": {
+            "x": 485,
+            "y": 730
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 90
+        },
+        "style": {},
+        "zIndex": 31
+    },
+    "SyncGeneratorRouter": {
+        "args": {
+            "AP": "0",
+            "BusType": "1",
+            "Control": "1",
+            "Dm": "0",
+            "Ef0_o": "",
+            "IT_inst": "",
+            "IT_o": "",
+            "ModelType": "0",
+            "NIM": "1",
+            "Name": "",
+            "P": "4",
+            "PT_o": "",
+            "ParamType": "1",
+            "QT_o": "",
+            "R0": "0",
+            "RP": "-6.785450690422936",
+            "RampingTime": "0.06",
+            "Rfd": "0.000117219",
+            "Rkd": "0.009822918",
+            "RkqQ": "0.005334267",
+            "Rkqg": "50000",
+            "Rs": "0.001",
+            "Rs_2": "0",
+            "Smva": "100",
+            "StartupType": "2",
+            "Td0p_2": "7.46",
+            "Td0pp_2": "0.05",
+            "Tj": "2.99",
+            "Tm0_o": "",
+            "Tq0p_2": "0.83",
+            "Tq0pp_2": "0.096",
+            "V": "6.062177826491071",
+            "VT_o": "",
+            "V_mag": "1",
+            "V_ph": "46.99581352628172",
+            "Xd": "0.283875",
+            "Xd_2": "1.53",
+            "Xdp_2": "0.165",
+            "Xdpp_2": "0.111",
+            "Xlfd": "0.047921256",
+            "Xlkd": "0.097868236",
+            "XlkqQ": "0.059027851",
+            "Xlkqg": "50000",
+            "Xls": "0",
+            "Xls_2": "0.01",
+            "Xq": "0.283875",
+            "Xq_2": "1.48",
+            "Xqp_2": "0.317",
+            "Xqpp_2": "0.11",
+            "freq": "50",
+            "l2n": "@L2N",
+            "l2n_o": "",
+            "loadangle_o": "",
+            "loadangle_so": "",
+            "pf_P": "0",
+            "pf_Q": "-6.8565628599999995",
+            "pf_Qmax": "100",
+            "pf_Qmin": "-50",
+            "pf_Theta": "47.0066578633",
+            "pf_V": "1",
+            "pf_Vmax": "10",
+            "pf_Vmin": "0.001",
+            "s2m": "@S2M",
+            "s2m_o": "",
+            "source_resistance": "1E-07",
+            "theta_o": "",
+            "wr_o": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/SyncGeneratorRouter",
+        "flip": false,
+        "id": "component_sync_generator_router_1",
+        "label": "\u540c\u6b65\u53d1\u7535\u673a1",
+        "pins": {
+            "0": "",
+            "1": "",
+            "2": "",
+            "3": "",
+            "4": "",
+            "5": ""
+        },
+        "position": {
+            "x": 395,
+            "y": 50
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 120,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 3
+    },
+    "TransmissionLine": {
+        "args": {
+            "B0pu": 0.006213,
+            "B1pu": 0.009889,
+            "Decoupled": "0",
+            "Decoupled_Multimachine": "0",
+            "Freq": 50,
+            "Ir": "",
+            "Irated": 0,
+            "Irrms": "",
+            "Is": "",
+            "Isrms": "",
+            "Length": 1,
+            "LongLineCorrection": "0",
+            "ModelType": "0",
+            "NIM": "1",
+            "Name": "",
+            "ParamFormat": "0",
+            "Ploss": "",
+            "Pr": "",
+            "Ps": "",
+            "Qloss": "",
+            "Qr": "",
+            "Qs": "",
+            "R0": 0.2885,
+            "R0pu": 0.0001154,
+            "R1": 0.0153,
+            "R1pu": 6.12e-06,
+            "Sbase": 100,
+            "Vbase": 110,
+            "X0pu": 0.0004276,
+            "X1pu": 0.0001156,
+            "Xc0": 0.4024,
+            "Xc1": 0.2528,
+            "Xl0": 1.069,
+            "Xl1": 0.289,
+            "Zero": "1"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/TransmissionLine",
+        "flip": false,
+        "id": "component_transmission_line_2",
+        "label": "\u4e09\u76f8\u4f20\u8f93\u7ebf2",
+        "pins": {
+            "0": "",
+            "1": ""
+        },
+        "position": {
+            "x": 580,
+            "y": 195
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 30,
+            "width": 90
+        },
+        "style": {},
+        "zIndex": 4
+    },
+    "Harmonic_continuous_injection": {
+        "args": {
+            "DeltaStep1": "0.1",
+            "DeltaStep2": "1",
+            "DeltaStep3": "10",
+            "DeltaTime1": "10",
+            "DeltaTime2": "2",
+            "DeltaTime3": "1",
+            "EndVal1": "10",
+            "EndVal2": "100",
+            "EndVal3": "1000",
+            "InitTime": "5",
+            "InitVal1": "1",
+            "InitVal2": "",
+            "InitVal3": "",
+            "Mag": "20",
+            "RampRatio": "0.2",
+            "RampTime": 0,
+            "Sequence": "0"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/Harmonic_continuous_injection",
+        "flip": false,
+        "id": "component_harmonic_continuous_injection_1",
+        "label": "\u6270\u52a8\u6ce8\u5165\u963b\u6297\u5206\u91cf1",
+        "pins": {
+            "Freq": "",
+            "Neg": "",
+            "Ph": "",
+            "Pos": "",
+            "Z": ""
+        },
+        "position": {
+            "x": 215,
+            "y": 475
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 100,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 18
+    },
+    "Harmonic_continuous_injection_I": {
+        "args": {
+            "DeltaStep1": "0.1",
+            "DeltaStep2": "1",
+            "DeltaStep3": "10",
+            "DeltaTime1": "10",
+            "DeltaTime2": "2",
+            "DeltaTime3": "1",
+            "EndVal1": "10",
+            "EndVal2": "100",
+            "EndVal3": "1000",
+            "InitTime": "5",
+            "InitVal1": "1",
+            "InitVal2": "",
+            "InitVal3": "",
+            "Mag": "0.1",
+            "RampRatio": "0.2",
+            "RampTime": 0,
+            "Sequence": "0",
+            "UnitTest": "0"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/Harmonic_continuous_injection_I",
+        "flip": false,
+        "id": "component_harmonic_continuous_injection_i_1",
+        "label": "\u6270\u52a8\u6ce8\u5165\u7535\u6d41\u963b\u6297\u5206\u91cf1",
+        "pins": {
+            "Freq": "",
+            "Neg": "",
+            "Ph": "",
+            "Phn": "",
+            "Php": "",
+            "Pos": "",
+            "Z": "",
+            "Zn": "",
+            "Zp": ""
+        },
+        "position": {
+            "x": 50,
+            "y": 455
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 120,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 17
+    },
+    "Harmonic_continuous_injection_V": {
+        "args": {
+            "DeltaStep1": "0.1",
+            "DeltaStep2": "1",
+            "DeltaStep3": "10",
+            "DeltaTime1": "10",
+            "DeltaTime2": "2",
+            "DeltaTime3": "1",
+            "EndVal1": "10",
+            "EndVal2": "100",
+            "EndVal3": "1000",
+            "InitTime": "5",
+            "InitVal1": "1",
+            "InitVal2": "",
+            "InitVal3": "",
+            "Mag": "20",
+            "RampRatio": "0.2",
+            "RampTime": 0,
+            "Sequence": "0",
+            "UnitTest": "0"
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/Harmonic_continuous_injection_V",
+        "flip": false,
+        "id": "component_harmonic_continuous_injection_v_1",
+        "label": "\u6270\u52a8\u6ce8\u5165\u7535\u538b\u963b\u6297\u5206\u91cf1",
+        "pins": {
+            "Freq": "",
+            "Neg": "",
+            "Ph": "",
+            "Phn": "",
+            "Php": "",
+            "Pos": "",
+            "Z": "",
+            "Zn": "",
+            "Zp": ""
+        },
+        "position": {
+            "x": 390,
+            "y": 455
+        },
+        "props": {
+            "enabled": true
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 120,
+            "width": 120
+        },
+        "style": {},
+        "zIndex": 20
+    },
+    "_newSum":{
+        "angle": 0,
+        "args": {
+            "A": "0",
+            "B": "0",
+            "C": "0",
+            "D": "1",
+            "E": "0",
+            "F": "-1",
+            "G": "0",
+            "Name": ""
+        },
+        "canvas": "canvas_0",
+        "context": {},
+        "definition": "model/CloudPSS/_newSum",
+        "flip": true,
+        "id": "canvas_0_813",
+        "label": "newSum-2",
+        "pins": {
+            "0": "",
+            "1": "",
+            "2": "",
+            "3": "#wr2",
+            "4": "",
+            "5": "AutoAddPin20260415152542_27",
+            "6": "",
+            "7": "AutoAddPin20260415152542_26"
+        },
+        "position": {
+            "x": -275,
+            "y": -75
+        },
+        "props": {
+            "enabled": true,
+            "outlineLevel": 0
+        },
+        "shape": "diagram-component",
+        "size": {
+            "height": 80,
+            "width": 80
+        },
+        "style": {
+            "--stroke-width": 2,
+            "--text": "var(--spectrum-global-color-gray-900)"
+        },
+        "zIndex": -9
+    }
+}

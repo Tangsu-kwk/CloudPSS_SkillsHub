@@ -1,0 +1,17 @@
+{
+  "task": "常量—增益—输出通道及取消修改",
+  "key": "control",
+  "status": "structural_pass",
+  "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\control",
+  "cloud_saves": [
+    "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-edited",
+    "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-deleted"
+  ],
+  "create": "verified",
+  "update": "verified",
+  "topology": "refreshed_not_physical_validation",
+  "edited_cloud": "verified",
+  "cancel": "verified",
+  "delete": "verified",
+  "source_unchanged": true
+}

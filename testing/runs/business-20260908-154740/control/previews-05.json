@@ -1,0 +1,12 @@
+{
+  "63a6b14515d84c14999c032062f93643": {
+    "operation": "saveProject",
+    "plan": {
+      "original_rid": "model/Makinohara_Shoko/IEEE39-test1",
+      "new_rid": "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-edited",
+      "mode": "create_only",
+      "name": "control-edited",
+      "component_count": 514
+    }
+  }
+}

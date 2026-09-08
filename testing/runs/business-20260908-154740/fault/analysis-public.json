@@ -1,0 +1,23 @@
+{
+  "plans": {},
+  "consumed_plans": "set()",
+  "analysis_requests": {},
+  "consumed_analysis_requests": "set()",
+  "current_turn": 7,
+  "analysis_called_turn": null,
+  "public_result_turn": null,
+  "public_result": null,
+  "readonly_rids": "set()",
+  "editable_rids": "set()",
+  "active_rid": null,
+  "working_rid": null,
+  "skill_sessions": {
+    "cloudpss-aux-modeling": {
+      "original_rid": "model/Makinohara_Shoko/IEEE39-test1",
+      "toolbox": "<_newagentv2_cloudpss_aux_modeling_2daadb0dacae35c6.PSAToolbox.PSAToolbox object at 0x000001E9CB4C8B50>",
+      "memory_model": "<cloudpss.model.model.Model object at 0x000001E9C0CBD950>",
+      "previews": {},
+      "current_version": "18d714a939b44355aa43f79e3da2726f"
+    }
+  }
+}

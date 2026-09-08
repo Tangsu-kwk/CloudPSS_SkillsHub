@@ -1,0 +1,47 @@
+{
+  "11e14b5107ea469f9e1317562d8e93e8": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "_newChannel_1",
+        "label": "练习通道",
+        "definition": "model/CloudPSS/_newChannel",
+        "canvas": "canvas_12",
+        "args": {
+          "Dim": {
+            "source": "1",
+            "ɵexp": ""
+          },
+          "Freq": {
+            "source": "1000",
+            "ɵexp": ""
+          },
+          "Name": "qa_control"
+        },
+        "pins": {
+          "0": "qa_output"
+        },
+        "position": {
+          "x": 220,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "_newChannel_1"
+      ],
+      "shared_net_peers": [
+        "_newGain_1"
+      ]
+    }
+  },
+  "0902120957f84de8ae74907b0a813051": {
+    "operation": "saveProject",
+    "plan": {
+      "original_rid": "model/Makinohara_Shoko/IEEE39-test1",
+      "new_rid": "model/Makinohara_Shoko/test1-autotest-20260908-154740-control-deleted",
+      "mode": "create_only",
+      "name": "control-deleted",
+      "component_count": 511
+    }
+  }
+}

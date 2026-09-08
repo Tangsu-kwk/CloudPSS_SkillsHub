@@ -1,0 +1,101 @@
+{
+  "aecf824cb945405cb43ef716507de1d6": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "_newConstant_1",
+        "label": "练习常量",
+        "definition": "model/CloudPSS/_newConstant",
+        "canvas": "canvas_12",
+        "args": {
+          "Name": "练习常量",
+          "Value": {
+            "source": "4",
+            "ɵexp": ""
+          }
+        },
+        "pins": {
+          "0": "qa_input"
+        },
+        "position": {
+          "x": 20,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "_newConstant_1"
+      ],
+      "shared_net_peers": [
+        "_newGain_1"
+      ]
+    }
+  },
+  "945bbc0c607843ab8b18fbc423a590dc": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "_newGain_1",
+        "label": "练习增益",
+        "definition": "model/CloudPSS/_newGain",
+        "canvas": "canvas_12",
+        "args": {
+          "G": {
+            "source": "2",
+            "ɵexp": ""
+          },
+          "Name": "练习增益"
+        },
+        "pins": {
+          "0": "qa_input",
+          "1": "qa_output"
+        },
+        "position": {
+          "x": 120,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "_newGain_1"
+      ],
+      "shared_net_peers": [
+        "_newConstant_1",
+        "_newChannel_1"
+      ]
+    }
+  },
+  "11e14b5107ea469f9e1317562d8e93e8": {
+    "operation": "delete",
+    "plan": {
+      "before": {
+        "key": "_newChannel_1",
+        "label": "练习通道",
+        "definition": "model/CloudPSS/_newChannel",
+        "canvas": "canvas_12",
+        "args": {
+          "Dim": {
+            "source": "1",
+            "ɵexp": ""
+          },
+          "Freq": {
+            "source": "1000",
+            "ɵexp": ""
+          },
+          "Name": "qa_control"
+        },
+        "pins": {
+          "0": "qa_output"
+        },
+        "position": {
+          "x": 220,
+          "y": 20
+        }
+      },
+      "removed_keys": [
+        "_newChannel_1"
+      ],
+      "shared_net_peers": [
+        "_newGain_1"
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+ "_NewVoltageMeter":{"V":"#qa_voltage_updated"},
+ "_newChannel":{"Freq":2000,"Dim":3},
+ "_newBreaker_3p":{"Close":0.3,"Open":1.2},
+ "_newDropGen":{"T1":0.6,"T2":0.8},
+ "_newShuntLC_3p":{"s":2,"freq":60},
+ "_newConstant":{"Value":2.5},
+ "_newFaultResistor_3p":{"ft":1,"fs":4,"fe":4.2,"chg":0.02},
+ "GND":{"Name":"验收接地点更新"},
+ "_newACVoltageSource_3p":{"Vm":115,"f":60,"Ph":5},
+ "_newBus_3p":{"VBase":220,"Freq":60,"V":1.02},
+ "_newExpLoad_3p":{"p":65,"q":22},
+ "_newStepGen":{"Time":2,"V0":1,"V1":3},
+ "_newTransformer_3p2w":{"Tmva":120,"V1":11},
+ "_PSASP_AVR_11to12":{"K":60,"KA":15},
+ "_newGain":{"G":3.5},
+ "SyncGeneratorRouter":{"Smva":120,"Tj":3.2},
+ "TransmissionLine":{"Length":12,"Vbase":220},
+ "Harmonic_continuous_injection":{"Mag":25,"InitTime":6},
+ "Harmonic_continuous_injection_I":{"Mag":0.2,"InitTime":6},
+ "Harmonic_continuous_injection_V":{"Mag":25,"InitTime":6},
+ "_newSum":{"A":2,"B":1}
+}

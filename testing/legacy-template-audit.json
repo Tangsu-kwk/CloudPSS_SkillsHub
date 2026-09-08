@@ -1,0 +1,172 @@
+[
+  {
+    "template": "_NewVoltageMeter",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-NewVoltageMeter-20260908-144901",
+    "status": "selected_crud_cloud_verified",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": true
+  },
+  {
+    "template": "_newChannel",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newChannel-20260908-145024",
+    "status": "selected_crud_cloud_verified",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": true
+  },
+  {
+    "template": "_newBreaker_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newBreaker3p-20260908-145149",
+    "status": "incomplete",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newBreaker3p-20260908-145149\\\\model-07.json'"
+  },
+  {
+    "template": "_newDropGen",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newDropGen-20260908-145309",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newDropGen-20260908-145309\\\\model-01.json'"
+  },
+  {
+    "template": "_newShuntLC_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newShuntLC3p-20260908-145310",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newShuntLC3p-20260908-145310\\\\model-01.json'"
+  },
+  {
+    "template": "_newConstant",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newConstant-20260908-143524",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newConstant-20260908-143524\\\\source-before.json'"
+  },
+  {
+    "template": "_newConstant",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newConstant-20260908-143627",
+    "status": "selected_crud_but_cloud_saved_deleted_baseline",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": false
+  },
+  {
+    "template": "_newFaultResistor_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newFaultResistor3p-20260908-145311",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newFaultResistor3p-20260908-145311\\\\model-01.json'"
+  },
+  {
+    "template": "GND",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-GND-20260908-145311",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-GND-20260908-145311\\\\model-01.json'"
+  },
+  {
+    "template": "_newACVoltageSource_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newACVoltageSource3p-20260908-145312",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newACVoltageSource3p-20260908-145312\\\\model-01.json'"
+  },
+  {
+    "template": "_newACVoltageSource_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newACVoltageSource3p-20260908-154030",
+    "status": "selected_crud_cloud_verified",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": true
+  },
+  {
+    "template": "_newBus_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newBus3p-20260908-144226",
+    "status": "selected_crud_cloud_verified",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": true
+  },
+  {
+    "template": "_newExpLoad_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newExpLoad3p-20260908-145313",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newExpLoad3p-20260908-145313\\\\model-01.json'"
+  },
+  {
+    "template": "_newExpLoad_3p",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newExpLoad3p-20260908-153624",
+    "status": "selected_crud_cloud_verified",
+    "create_selected_args": "verified",
+    "update_selected_args": "verified",
+    "delete_cells": "verified",
+    "cloud_contains_modified_revision": true
+  },
+  {
+    "template": "_newStepGen",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newStepGen-20260908-145313",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newStepGen-20260908-145313\\\\model-01.json'"
+  },
+  {
+    "template": "_newTransformer_3p2w",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newTransformer3p2w-20260908-145314",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newTransformer3p2w-20260908-145314\\\\model-01.json'"
+  },
+  {
+    "template": "_newTransformer_3p2w",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newTransformer3p2w-20260908-154206",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newTransformer3p2w-20260908-154206\\\\model-01.json'"
+  },
+  {
+    "template": "_PSASP_AVR_11to12",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-PSASPAVR11to12-20260908-145318",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-PSASPAVR11to12-20260908-145318\\\\model-01.json'"
+  },
+  {
+    "template": "_newGain",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newGain-20260908-145319",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newGain-20260908-145319\\\\model-01.json'"
+  },
+  {
+    "template": "SyncGeneratorRouter",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-SyncGeneratorRouter-20260908-145319",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-SyncGeneratorRouter-20260908-145319\\\\model-01.json'"
+  },
+  {
+    "template": "TransmissionLine",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-TransmissionLine-20260908-145320",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-TransmissionLine-20260908-145320\\\\model-01.json'"
+  },
+  {
+    "template": "Harmonic_continuous_injection",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-Harmoniccontinuousinjection-20260908-145321",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-Harmoniccontinuousinjection-20260908-145321\\\\model-01.json'"
+  },
+  {
+    "template": "Harmonic_continuous_injection_I",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-HarmoniccontinuousinjectionI-20260908-145321",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-HarmoniccontinuousinjectionI-20260908-145321\\\\model-01.json'"
+  },
+  {
+    "template": "Harmonic_continuous_injection_V",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-HarmoniccontinuousinjectionV-20260908-145322",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-HarmoniccontinuousinjectionV-20260908-145322\\\\model-01.json'"
+  },
+  {
+    "template": "_newSum",
+    "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\template-newSum-20260908-145323",
+    "status": "incomplete",
+    "audit_issue": "[Errno 2] No such file or directory: 'D:\\\\VScodeProjects\\\\SCAgent2\\\\testing\\\\runs\\\\template-newSum-20260908-145323\\\\model-01.json'"
+  }
+]

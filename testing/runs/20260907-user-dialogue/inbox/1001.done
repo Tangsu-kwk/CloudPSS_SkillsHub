@@ -1,0 +1,1 @@
+{"message":"请把 model/Makinohara_Shoko/IEEE39-test1 中 key 为 canvas_0_965 的故障开始时间改为 2.2 秒、结束时间改为 2.3 秒，保持三相故障以及其他参数不变。我要把修改另存为独立测试模型 model/Makinohara_Shoko/scagent2-verify-fault-20260907，绝对不要覆盖原模型。请先生成完整预览，不执行、不保存。"}

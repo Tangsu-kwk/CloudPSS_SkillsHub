@@ -1,0 +1,12 @@
+{
+  "ef1600b5ecc4445da7e7564c1d5b376d": {
+    "operation": "saveProject",
+    "plan": {
+      "original_rid": "model/Makinohara_Shoko/IEEE39-test1",
+      "new_rid": "model/Makinohara_Shoko/test1-autotest-20260908-154740-batch-load-edited",
+      "mode": "create_only",
+      "name": "batch-load-edited",
+      "component_count": 514
+    }
+  }
+}

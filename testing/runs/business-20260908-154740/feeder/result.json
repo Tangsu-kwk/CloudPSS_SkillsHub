@@ -1,0 +1,10 @@
+{
+  "task": "母线—线路—负荷支路",
+  "key": "feeder",
+  "status": "failed_or_blocked",
+  "evidence": "D:\\VScodeProjects\\SCAgent2\\testing\\runs\\business-20260908-154740\\feeder",
+  "cloud_saves": [],
+  "phase": "create-confirm",
+  "error": "任务负荷: pin 0 does not connect qa_feeder",
+  "source_unchanged": true
+}

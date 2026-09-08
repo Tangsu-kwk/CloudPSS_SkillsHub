@@ -1,0 +1,23 @@
+[
+ {"template":"_NewVoltageMeter","name":"验收电压表","type":"三相电压表","create":"维度为3，电压输出信号为 #qa_voltage","update":"把电压输出信号改为 #qa_voltage_updated"},
+ {"template":"_newChannel","name":"验收输出通道","type":"输出通道","create":"采样频率为1000 Hz，维度为3","update":"把采样频率改为2000 Hz"},
+ {"template":"_newBreaker_3p","name":"验收断路器","type":"三相断路器","create":"初始断开，0.2秒合闸，1秒分闸","update":"把合闸时间改为0.3秒，分闸时间改为1.2秒"},
+ {"template":"_newDropGen","name":"验收陷落信号","type":"陷落发生器","create":"初始值为1，陷落值为0，0.4秒开始、0.5秒结束","update":"把陷落开始时间改为0.6秒，结束时间改为0.8秒"},
+ {"template":"_newShuntLC_3p","name":"验收并联补偿","type":"三相并联电容/电抗器","create":"额定电压110 kV，容量1 MVA，频率50 Hz","update":"把容量改为2 MVA，频率改为60 Hz"},
+ {"template":"_newConstant","name":"验收常量","type":"常量输入","create":"输出值为1","update":"把输出值改为2.5"},
+ {"template":"_newFaultResistor_3p","name":"验收接地故障","type":"三相故障电阻","create":"三相接地故障，3秒开始、3.1秒结束，初始电阻1000000000欧姆、故障电阻0.01欧姆","update":"把故障改为A相接地，开始时间改为4秒、结束时间改为4.2秒，故障电阻改为0.02欧姆"},
+ {"template":"GND","name":"验收接地点","type":"接地点","create":"名称为验收接地点","update":"把名称和标签都改为验收接地点更新"},
+ {"template":"_newACVoltageSource_3p","name":"验收交流源","type":"三相交流电压源","create":"电压幅值110 kV，频率50 Hz，相位0度","update":"把电压幅值改为115 kV，频率改为60 Hz，相位改为5度"},
+ {"template":"_newBus_3p","name":"验收母线","type":"三相交流母线","create":"基准电压110 kV，频率50 Hz，电压为1标幺","update":"把基准电压改为220 kV，频率改为60 Hz，电压改为1.02标幺"},
+ {"template":"_newExpLoad_3p","name":"验收静态负荷","type":"三相静态负荷","create":"额定电压110 kV，有功60 MW，无功20 Mvar，频率50 Hz","update":"把有功改为65 MW，无功改为22 Mvar"},
+ {"template":"_newStepGen","name":"验收阶跃信号","type":"阶跃发生器","create":"1秒时从0跳变到1","update":"改为2秒时从1跳变到3"},
+ {"template":"_newTransformer_3p2w","name":"验收变压器","type":"三相双绕组变压器","create":"容量100 MVA，一次侧10 kV、二次侧110 kV，频率50 Hz","update":"把容量改为120 MVA，一次侧电压改为11 kV"},
+ {"template":"_PSASP_AVR_11to12","name":"验收励磁调节器","type":"PSASP 11至12型励磁调节器","create":"使用12型，K为56.25，KA为14.2","update":"把K改为60，KA改为15"},
+ {"template":"_newGain","name":"验收增益","type":"增益模块","create":"增益为2","update":"把增益改为3.5"},
+ {"template":"SyncGeneratorRouter","name":"验收同步机","type":"同步发电机","create":"额定容量100 MVA，频率50 Hz，惯性时间常数Tj为2.99秒","update":"把额定容量改为120 MVA，惯性时间常数Tj改为3.2秒"},
+ {"template":"TransmissionLine","name":"验收线路","type":"三相传输线","create":"长度10 km，基准电压110 kV，频率50 Hz","update":"把线路长度改为12 km，基准电压改为220 kV"},
+ {"template":"Harmonic_continuous_injection","name":"验收谐波阻抗","type":"扰动注入阻抗分量模块","create":"扰动幅值Mag为20，5秒开始注入","update":"把幅值Mag改为25，开始时间改为6秒"},
+ {"template":"Harmonic_continuous_injection_I","name":"验收谐波电流","type":"扰动注入电流阻抗分量模块","create":"扰动幅值Mag为0.1，5秒开始注入","update":"把幅值Mag改为0.2，开始时间改为6秒"},
+ {"template":"Harmonic_continuous_injection_V","name":"验收谐波电压","type":"扰动注入电压阻抗分量模块","create":"扰动幅值Mag为20，5秒开始注入","update":"把幅值Mag改为25，开始时间改为6秒"},
+ {"template":"_newSum","name":"验收加法器","type":"加法器","create":"系数A为1、B为-1，其他输入系数为0","update":"把系数A改为2、B改为1"}
+]

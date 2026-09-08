@@ -1,0 +1,44 @@
+{
+  "task_id": "f53a1bed-4310-4f1d-a271-647e6325bed8",
+  "time_unit": "s",
+  "value_unit": "kA",
+  "normalized": true,
+  "channels": [
+    {
+      "channel": "#example:0",
+      "method": "direct_current_channel",
+      "sample_count": 15001,
+      "time_start_s": 0.0,
+      "time_end_s": 14.999999999971712,
+      "min_current_ka": -10.65185322779016,
+      "max_current_ka": 12.281341609899027,
+      "peak_current_ka": 12.281341609899027,
+      "raw_unit": "kA",
+      "unit_source": "parameter.name"
+    },
+    {
+      "channel": "#example:1",
+      "method": "direct_current_channel",
+      "sample_count": 15001,
+      "time_start_s": 0.0,
+      "time_end_s": 14.999999999971712,
+      "min_current_ka": -19.9767245568107,
+      "max_current_ka": 9.229958561236064,
+      "peak_current_ka": 19.9767245568107,
+      "raw_unit": "kA",
+      "unit_source": "parameter.name"
+    },
+    {
+      "channel": "#example:2",
+      "method": "direct_current_channel",
+      "sample_count": 15001,
+      "time_start_s": 0.0,
+      "time_end_s": 14.999999999971712,
+      "min_current_ka": -9.21340477964574,
+      "max_current_ka": 19.437529656637512,
+      "peak_current_ka": 19.437529656637512,
+      "raw_unit": "kA",
+      "unit_source": "parameter.name"
+    }
+  ]
+}

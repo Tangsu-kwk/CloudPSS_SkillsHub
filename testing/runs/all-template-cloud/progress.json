@@ -1,0 +1,166 @@
+[
+  {
+    "template": "_NewVoltageMeter",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-voltage-meter",
+    "passed": true,
+    "source_unchanged": true,
+    "readback_verified": true,
+    "simulation_run": false,
+    "status": "passed"
+  },
+  {
+    "template": "_newChannel",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-channel",
+    "passed": true,
+    "source_unchanged": true,
+    "readback_verified": true,
+    "simulation_run": false,
+    "status": "passed"
+  },
+  {
+    "template": "_newBreaker_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-breaker",
+    "passed": false,
+    "error": "Conversation run failed for id=ee119b8c-0190-4feb-8599-242078eb4889: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newDropGen",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-drop-generator",
+    "passed": false,
+    "error": "Conversation run failed for id=06524842-b95a-422c-b7c8-1c137c7d9a35: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newShuntLC_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-shunt-lc",
+    "passed": false,
+    "error": "Conversation run failed for id=4d8dd3e3-dca3-4c4b-bb5b-14cf98a63167: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newConstant",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-constant",
+    "status": "already_completed"
+  },
+  {
+    "template": "_newFaultResistor_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-fault-resistor",
+    "passed": false,
+    "error": "Conversation run failed for id=d5f658ac-356c-4f6e-a9ca-0cb30548f6e3: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "GND",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-ground",
+    "passed": false,
+    "error": "Conversation run failed for id=3c58bc7c-6462-40d3-8543-0a3c759073aa: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newACVoltageSource_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-ac-source",
+    "passed": false,
+    "error": "Conversation run failed for id=dac86767-9130-42c0-873f-9422841a6dbd: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newBus_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-bus",
+    "status": "already_completed"
+  },
+  {
+    "template": "_newExpLoad_3p",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-load",
+    "passed": false,
+    "error": "Conversation run failed for id=3ce1781a-900b-45d2-9011-95aa05a5cfc9: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newStepGen",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-step-generator",
+    "passed": false,
+    "error": "Conversation run failed for id=85a3ea31-2926-41d3-b65e-988a18d8d142: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newTransformer_3p2w",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-transformer",
+    "passed": false,
+    "error": "Conversation run failed for id=83bec3b4-4a0f-47a9-a117-9ab41d2594c0: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_PSASP_AVR_11to12",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-avr",
+    "passed": false,
+    "error": "Conversation run failed for id=68af287f-1a44-47fd-bbcd-06e3d37b2ca5: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newGain",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-gain",
+    "passed": false,
+    "error": "Conversation run failed for id=c802e18e-586b-4158-940e-154baba0805d: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "SyncGeneratorRouter",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-sync-generator",
+    "passed": false,
+    "error": "Conversation run failed for id=8e1196b3-0ad8-4802-8d8f-1ebb6351ced5: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "TransmissionLine",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-transmission-line",
+    "passed": false,
+    "error": "Conversation run failed for id=780b8532-a04c-4387-839b-a0b7790b30d4: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "Harmonic_continuous_injection",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-harmonic-impedance",
+    "passed": false,
+    "error": "Conversation run failed for id=5ed8320c-ced1-46bb-9f27-5af0f1f88e42: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "Harmonic_continuous_injection_I",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-harmonic-current",
+    "passed": false,
+    "error": "Conversation run failed for id=3ca97f81-96ec-4329-973c-e0c71402f2aa: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "Harmonic_continuous_injection_V",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-harmonic-voltage",
+    "passed": false,
+    "error": "Conversation run failed for id=d78eed90-1c3b-4419-9c26-1b06cf5bf5db: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  },
+  {
+    "template": "_newSum",
+    "target_rid": "model/Makinohara_Shoko/test1-autotest-sum",
+    "passed": false,
+    "error": "Conversation run failed for id=cf6e0320-8065-4b27-9ddf-5cc8214d1cd6: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "simulation_run": false,
+    "status": "failed"
+  }
+]

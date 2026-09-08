@@ -1,0 +1,1 @@
+{"passed": true, "checks": ["session input rejection", "keyword-only reversed signature", "field selection", "50000-character lossless retrieval", "partial batch stop"], "cloud_saved": false}

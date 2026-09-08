@@ -1,0 +1,1 @@
+{"passed": false, "error": "'ConversationState' object is not reversible", "completed_turns": 0, "llm_used": true, "model_backend": "offline_fixture"}

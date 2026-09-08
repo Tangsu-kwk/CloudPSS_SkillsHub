@@ -1,0 +1,6 @@
+{
+  "passed": false,
+  "error": "Conversation run failed for id=85a3ea31-2926-41d3-b65e-988a18d8d142: litellm.BadRequestError: DeepseekException - {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+  "target_rid": "model/Makinohara_Shoko/test1-autotest-step-generator",
+  "simulation_run": false
+}

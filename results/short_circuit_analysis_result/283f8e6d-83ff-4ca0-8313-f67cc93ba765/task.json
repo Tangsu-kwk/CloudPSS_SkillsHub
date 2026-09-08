@@ -1,0 +1,13 @@
+{
+  "task_id": "283f8e6d-83ff-4ca0-8313-f67cc93ba765",
+  "status": "complete",
+  "model_rid": "model/Makinohara_Shoko/IEEE39-test1",
+  "model_parameters": "model_parameters.json",
+  "analysis_result": "analysis_result.json",
+  "waveform": "waveform.csv",
+  "waveform_summary": "waveform_summary.json",
+  "summary_csv": "summary.csv",
+  "analysis_report": "analysis_report.md",
+  "analysis_code": "analysis_code.py",
+  "raw_waveforms": "raw_waveforms"
+}

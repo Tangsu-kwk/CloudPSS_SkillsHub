@@ -1,0 +1,4 @@
+interface:
+  display_name: "仿真分析报告生成"
+  short_description: "读取 CloudPSS 结果或本地文件并生成 HTML 仿真报告。"
+  default_prompt: "使用 $generate-simulation-report，从会话上下文获取 CloudPSS 结果 RID，在导出命令中显式引用 CLOUDPSS_LOGIN_TOKEN/CLOUDPSS_TOKEN 取得 Token 后传给导出工具，再生成 HTML 仿真分析报告并完成浏览器实渲染验收。"

@@ -1,0 +1,1 @@
+{"message":"Debug：你的自动挂载元件库 saSource.json 中明确存在三相静态负荷模板 `_newExpLoad_3p`，其参数包含 p、q、v，pins 有 0。你刚才为什么没有使用这个模板而猜测了二十多个不存在的名字？请基于 `_newExpLoad_3p` 纠正方案：母线 `_newBus_3p`，线路 `TransmissionLine`，负荷 `_newExpLoad_3p`；按用户给定参数，未指定参数保持模板默认；线路 pin0=bus12、pin1=qa_load_bus，新母线 pin0=qa_load_bus，负荷 pin0=qa_load_bus。本轮只给纠正后的方案，不执行。"}

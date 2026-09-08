@@ -1,0 +1,3 @@
+{
+  "message": "你把参数放错位置了：正式编辑请求使用 changes.args、changes.pins，target 只负责定位元件或指定模板和画布。请纠正刚才“create 不能覆盖参数”的结论。我的要求始终是新增一个电压表并接到 Bus12，不是放一个孤立元件。请先重新预览：Dim=3，V=#qa_voltage，端口0接bus12，标签验收电压表。"
+}

@@ -1,0 +1,66 @@
+import json
+from pathlib import Path
+from collections import Counter
+ROOT=Path(__file__).resolve().parent
+OUT=ROOT/'runs'/'20260907-user-dialogue'
+cases=json.loads((ROOT/'component_cases.json').read_text(encoding='utf-8'))
+rows=json.loads((OUT/'verification-matrix.json').read_text(encoding='utf-8'))
+results=[json.loads(p.read_text(encoding='utf-8')) for p in OUT.glob('*-result.json')]
+successful=[r for r in results if not r.get('error')]
+counts=Counter(r['status'] for r in rows)
+lines=['# SCAgent2 用户对话式辅助建模测试记录','',
+'测试日期：2026-09-07。执行目录：`D:/VScodeProjects/SCAgent2`。',
+'模型：`model/Makinohara_Shoko/IEEE39-test1`；实际入口 `newagentv2.py`；LLM 为 `deepseek/deepseek-chat`。','',
+'## 当前结论','',
+'21 个模板均已通过真实智能体对话创建到当前内存模型，新增后可查询回读。19 个模板完成本轮指定参数的新增、修改、查询核对；故障电阻的创建类型不符合三相接地要求；加法器完成新增和修改预览，但确认修改时 DeepSeek 返回 HTTP 402 / Insufficient Balance。',
+'全部操作均未保存云端、未运行仿真。21 个新增对象不等于 21 种元件已通过工程连接或仿真验证。','',
+'## 测试方式与证据边界','',
+'- 使用测试外壳导入现有 `newagentv2.create_agent()`，保留三个 Skill 自动加载、原系统提示词和工具实现。未改智能体代码、Skill 文档、运行时或组件库。',
+'- 通过 `Conversation.send_message()` 和 `run()` 输入用户式中文需求；调试时单独指出实际接口问题。外壳仅保存事件及模型快照，没有代替智能体调用编辑函数完成操作。',
+'- 首先采用不提供模板键的自然需求；失败后在原会话调试。逐模板阶段提供库中设备型号及业务参数，属于已知型号条件下的验收。',
+'- 逐项测试最初开启独立会话；发现同一接口错误反复发生后，余下元件在同一持续会话完成，并保留调试帮助。这不是21个完全独立、无提示帮助的首次成功。',
+'- 每种元件只覆盖本轮选定参数，并非全部参数、所有取值或所有端口组合。元件绝大多数暂不接线。',
+'- 原始模型含297个非连线对象；最终快照新增21个对象。按完整cells比较，最终原有对象无净变化；早期输出通道曾被误改，后经同一智能体恢复。',
+'- 部分非连线对象是分组或空壳，因此297不能当作297个真实电气元件。','',
+'## 逐模板结果','',
+'| 型号 | 用户称呼 | 新增 | 修改与查询 | 说明 |','|---|---|---|---|---|']
+for c,r in zip(cases,rows):
+    status=r['status']
+    note='指定参数与快照一致；未做物理验收'
+    upd='本轮通过'
+    add='已创建并回读'
+    if status=='CREATE_PARAM_MISMATCH':
+        note='要求三相接地，创建仍ft=1；时间、电阻修改通过；故障类型修改未形成可靠语义验证'
+        upd='部分通过'
+    if status=='BLOCKED_PROVIDER':
+        note='A=1、B=-1新增通过；A=2、B=1只完成预览；余额不足中断'
+        upd='未完成'
+    lines.append(f"| `{c['template']}` | {c['name']} | {add} | {upd} | {note} |")
+lines += ['', '## 已确认的问题','',
+'1. **模板发现缺口**：首轮无法列出本地库。新增三相电压表时猜测13个错误模板名称；提供真实 `_NewVoltageMeter` 后才继续。证据：`005-result.json` 及 `01-natural-discovery-retry-events.jsonl`。',
+'2. **请求契约不清、错误字段被忽略**：参数放在target.args/params后没有生效，智能体误判create无法覆盖参数。指出changes.args/pins后真实预览正确。证据：`006-result.json`、`007-result.json`。inspect接收无关字段后仍全量返回，而不是明确拒绝。',
+'3. **全量数据反复进入上下文**：单母线查询多次返回约131143字符并遭50000字符截断；首轮只读需求耗时约312秒。工具参数试错与全量查询共同增加耗时、上下文和调用成本。未查询账户账单，无法断言本次实际金额。',
+'4. **文字方案与真实预览不一致**：如0100的文字列出自定义标签和#qa_voltage，pending_preview仍是默认标签和#vac。后续最终修改成功，不代表预览本身准确。',
+'5. **误改范围**：0101误清原有输出通道component_new_channel_1；008纠正后恢复。最终完整快照比对无原有对象净变化。该案例初始措辞有歧义，后续已改为仅新设备引脚留空。',
+'6. **拓扑运行时兼容错误**：当前SDK的Model.configs为list，真实快照configs也是list、currentConfig=0；runtime._refresh_topology却要求configs为dict，导致有效模型被拒绝。不能归因为平台缺配置。证据：0101-result.json、003-model.json、运行时253行附近和已安装SDK Model定义。',
+'7. **故障语义未完成**：三相接地请求被保留为模板ft=1；参考PSAToolbox约定ft=7对应ABC、ft=1对应A。智能体没有取得枚举定义，随后A相修改没有实际更新类型字段。时间电阻正确不能掩盖类型需求未完成。',
+'8. **自动测试调度器的完成计数不代表通过**：余额不足后原调度器继续快速尝试后续消息，已停止并修正为遇错误即停。suite-progress/extended-progress是旧调度进度，不是验收结论；以本报告和verification-matrix为准。','',
+'## 尚未完成','',
+'- 加法器确认修改及其后的只读查询。',
+'- 电压表实际接Bus12：已在调试会话形成正确预览，但未执行；后续执行场景被余额不足阻断。',
+'- 常量—增益—通道，以及母线—线路—负荷的接线与验证。',
+'- 一次请求新增3个常量、批量修改、重复名称、歧义对象、非法参数、取消预览测试。',
+'- 对当前内存模型做短路分析的入口衔接检查；未启动仿真。',
+'- 修复拓扑兼容问题后的逐模板拓扑验收、端口语义和物理仿真。','',
+'## 文件与恢复依据','',
+'- `verification-matrix.json`：逐模板快照检查结果。',
+'- `*-events.jsonl`：完整带时间戳的用户消息、智能体动作、工具返回和最终消息，凭据已脱敏。',
+'- `NNNN-result.json`：每轮需求、回复、耗时、待确认预览。',
+'- `NNNN-model.json`：对应轮次内存模型完整快照；最后成功快照 `0303-model.json`，待执行加法器修改见 `0303-result.json`。',
+'- `testing/component_cases.json`、`testing/expected_create.json`、`testing/expected_changes.json`：本轮案例与验收期望。',
+'- 不应直接把失败后积累的确认消息当作恢复指令。恢复前应清晰重建或恢复会话，核查当前模型，再从加法器未完成操作开始。','',
+f'已保存成功对话轮次：{len(successful)}。本轮状态：{dict(counts)}。']
+(OUT/'TEST_REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+summary={'status':'blocked_external','reason':'DeepSeek HTTP 402 Insufficient Balance','templates_created':21,'full_selected_crud_checks_passed':19,'partial':1,'update_blocked':1,'topology':'blocked_runtime_configs_list_dict_mismatch','batch':'not_verified','last_model':'0303-model.json','successful_turns':len(successful)}
+(OUT/'SUMMARY.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+print(json.dumps(summary,ensure_ascii=True))

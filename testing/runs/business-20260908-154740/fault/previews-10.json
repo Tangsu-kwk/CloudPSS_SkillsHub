@@ -1,0 +1,13 @@
+{
+  "20b84a0ddf4d43a197158eb31f02a9f4": {
+    "operation": "saveProject",
+    "plan": {
+      "original_rid": "model/Makinohara_Shoko/IEEE39-test1",
+      "new_rid": "model/Makinohara_Shoko/test1-autotest-20260908-154740-fault-deleted",
+      "mode": "create_only",
+      "desc": "fault-deleted",
+      "name": "fault-deleted",
+      "component_count": 511
+    }
+  }
+}
