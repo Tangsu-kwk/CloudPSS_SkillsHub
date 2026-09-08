@@ -40,7 +40,7 @@ metadata:
 
 1. 认证 token 只从环境变量或用户明确提供的安全配置读取；不要写入 Skill、脚本或日志。
 2. 初始化一次 `PSAToolbox`，后续连续修改复用同一个 `sa.project.revision`。只有用户要求重置或执行相互独立的批量案例时才重新初始化。
-3. 领域类直接调用 `setInitialConditions()` 时，`deleteEdges=True` 会把图形连线转换为 pin 名称连接；Agent 结构化入口初始化时固定关闭该行为，删边必须单独预览和确认。
+3. Agent 初始化遵循参考 `setInitialConditions()`：有图形边时先刷新拓扑、调用 `deleteEdges()` 转为命名 pins，再核验转换前后连接分组一致。仅提交验证成功的内存转换，不保存源 RID；失败停止初始化。无图形边不重复请求拓扑。查询返回 `connection_audit`，须向用户说明已转换。
 4. 默认只修改当前进程中的 revision。未经用户明确授权，不调用 `saveProject()`。
 5. 每次新增或修改后都查询回读；新增、删除或引脚/连接变化后调用 `refreshTopology()`。
 6. 不凭记忆猜测 RID、组件 key、label 或 pin 编号；先查询当前模型和组件模板。
@@ -67,7 +67,7 @@ metadata:
 
 ```python
 sa = PSAToolbox()
-sa.config["deleteEdges"] = False
+sa.config["deleteEdges"] = True
 sa.setConfig(
     token=token,
     apiURL=api_url,
@@ -169,3 +169,7 @@ confirmation 确认执行时使用 execute/确认执行
 “参数和已有元件一致”时先查询参考和目标元件，核对 definition 和字段兼容；复制用户指定的参数原值（保留 source表达式），不自动复制 Name、label、pins、位置、画布。不同类型或表达式依赖不明确时询问，不声称物理等价。修改缺省字段保持原值；新增可沿用模板默认值并说明，关键意图缺失才询问。
 
 Skill 内部保留参考代码的领域类和方法名：`PSAToolbox(CaseEditToolbox)`、`setConfig`、`setInitialConditions`、`getComponentByKey`、`getComponentsByRid`、`addComp`、`addCompInCanvas`、`updateCompArgs`、`refreshTopology`、`deleteEdges`、`saveProject`。Agent 入口只是结构化包装，不替代这些方法。
+
+## Pin 连接模式
+
+参见 [pin 与图形边约定](references/pin-and-diagram-edge.md)。初始化后以 pins 节点名作为建模连接方式。新增负荷将其电气 pin 填为目标母线的实际节点名；线路两端填写目标网络节点名。不要因画布没有新增线条就判定没有电气连接，也不要承诺创建 diagram-edge。端子用途未知时查询证据，不猜变压器端子顺序。比较拓扑中目标 pin 的节点归属验证连接，节点编号本身可能变化。

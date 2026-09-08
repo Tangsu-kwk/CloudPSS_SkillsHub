@@ -76,7 +76,7 @@ saveProject 的内部实现只调用 Model.create；禁止改用 Model.save(key)
 | 方法 | 当前语义与差异 |
 |---|---|
 | setConfig(token=None, apiURL=None, username=None, model=None, comLibName=None, iGraph=None) | 配置认证、源模型、组件库；model 是短名称。iGraph=True 暂不支持 |
-| setInitialConditions(*, project=None) | 获取项目或复用注入项目，加载库、标签和画布状态；直接调用默认 deleteEdges=True。Agent 初始化固定关闭自动删边 |
+| setInitialConditions(*, project=None) | 获取项目或复用注入项目，加载库、标签和画布状态；直接调用默认 deleteEdges=True。Agent 同样默认转换；在隔离副本转换并比较前后拓扑连接分组，失败不提交，查询返回 connection_audit |
 | getRevision(file=None)、loadRevision(revision=None, file=None) | revision序列化/加载；文件路径含义保留参考实现 |
 | getComponentByKey、getComponentsByRid、getAllComponents | 查询实例、类型和 cells；返回 SDK对象 |
 | _resolve_comp_key、_resolve_comp_keys、convertLabelToKey | 优先精确 key/label/Name；未匹配时仅对 label/Name 使用唯一大小写不敏感匹配；重名拒绝，key不做模糊匹配 |

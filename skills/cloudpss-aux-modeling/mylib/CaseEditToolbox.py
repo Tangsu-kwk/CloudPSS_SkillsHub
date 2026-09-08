@@ -86,43 +86,69 @@ class CaseEditToolbox:
         self.topo = None
         edge_count_before = sum(1 for c in self.getAllComponents().values()
                                 if getattr(c, "shape", None) == "diagram-edge")
-        can_refresh = hasattr(self.project, "configs") and hasattr(self.project, "context")
-        if self.config["deleteEdges"] and can_refresh:
-            self.refreshTopology()
-            removed_edges = self.deleteEdges()
-            self.connection_audit = {
-                "mode": "pin",
-                "converted": True,
-                "diagram_edge_count_before": edge_count_before,
-                "diagram_edge_count_removed": len(removed_edges),
-                "diagram_edge_count_after": sum(
-                    1 for c in self.getAllComponents().values()
-                    if getattr(c, "shape", None) == "diagram-edge"
-                ),
-            }
-        elif self.config["deleteEdges"] and not can_refresh:
-            # Offline/unit fixtures may not expose CloudPSS config metadata;
-            # retain their pins and record that conversion was unavailable.
-            self.connection_audit = {
-                "mode": "pin",
-                "converted": False,
-                "conversion_unavailable": "project lacks configs/context",
-                "diagram_edge_count_before": edge_count_before,
-            }
-        else:
-            self.connection_audit = {
-                "mode": "diagram-edge",
-                "converted": False,
-                "diagram_edge_count_before": edge_count_before,
-                "diagram_edge_count_removed": 0,
-                "diagram_edge_count_after": edge_count_before,
-            }
+        self.connection_audit = {
+            "mode": "pin" if self.config["deleteEdges"] else "preserved",
+            "converted": False,
+            "diagram_edge_count_before": edge_count_before,
+            "diagram_edge_count_removed": 0,
+            "diagram_edge_count_after": edge_count_before,
+        }
+        if self.config["deleteEdges"] and edge_count_before:
+            # Normalize an isolated copy. Failed topology resolution or a
+            # changed connection partition must not mutate the caller's model.
+            original = self.project
+            self.project = copy.deepcopy(original)
+            try:
+                before = self.refreshTopology()
+                before_groups = self._connection_groups(self.topo)
+                self.connection_edges_before = {
+                    key: json_value(comp) for key, comp in self.getAllComponents().items()
+                    if getattr(comp, "shape", None) == "diagram-edge"
+                }
+                removed_edges = self.deleteEdges()
+                after = self.refreshTopology()
+                if self._connection_groups(self.topo) != before_groups:
+                    raise ValueError("Edge-to-pin conversion changed topology connections")
+                converted_cells = copy.deepcopy(self.getAllComponents())
+                if any(getattr(c, "shape", None) == "diagram-edge" for c in converted_cells.values()):
+                    raise ValueError("Edge-to-pin conversion left graphical edges")
+            except Exception:
+                self.project = original
+                self.topo = None
+                self.connection_audit = {"mode": "uninitialized", "status": "conversion_failed"}
+                raise
+            self.project = original
+            # Preserve host project/revision identity after full verification.
+            original.revision.implements.diagram.cells.clear()
+            original.revision.implements.diagram.cells.update(converted_cells)
+            self.connection_audit.update(
+                converted=True, status="topology_equivalent",
+                diagram_edge_count_removed=len(removed_edges), diagram_edge_count_after=0,
+                before_revision_hash=before["revision_hash"],
+                after_revision_hash=after["revision_hash"],
+                connected_net_count=len(before_groups[0]),
+            )
+        elif self.config["deleteEdges"]:
+            self.connection_audit["status"] = "no_edges_to_convert"
         self.setCompLabelDict()
         self.setChannelPinDict()
         canvases = self.project.revision.implements.diagram.canvas
         self.current_canvas = canvases[0]["key"] if canvases else None
         for canvas in canvases:
             self.initCanvasPos(canvas["key"])
+
+    @staticmethod
+    def _connection_groups(topology):
+        """Compare net membership, not platform-generated node numbers."""
+        groups, empty = {}, set()
+        for path, comp in topology.get("components", {}).items():
+            for pin, node in (comp.get("pins") or {}).items():
+                endpoint = (path, str(pin))
+                if node in (None, ""):
+                    empty.add(endpoint)
+                else:
+                    groups.setdefault(str(node), set()).add(endpoint)
+        return frozenset(frozenset(group) for group in groups.values()), frozenset(empty)
 
     def getRevision(self, file=None):
         data = copy.deepcopy(json_value(self.project.revision))

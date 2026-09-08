@@ -99,7 +99,7 @@ def _toolbox(session_state):
     sa = PSAToolbox()
     injected = session_state.get("memory_model")
     if injected is not None:
-        # Reuse a host-owned model without another fetch or token reconfiguration.
+        # Reuse the host-owned model; normalize before publishing the toolbox.
         sa.config["comLibName"] = session_state.get("component_library", "saSource.json")
         sa.config["deleteEdges"] = True
         # setInitialConditions performs the same edge-to-pin normalization as
@@ -116,7 +116,7 @@ def _toolbox(session_state):
                      apiURL=session_state.get("api_url"), comLibName=session_state.get("component_library"))
     elif session_state.get("memory_model") is None:
         raise ValueError("Provide session_state.original_rid")
-    # Host initialization must not silently rewrite graphical connections.
+    # Agent modeling follows reference edge-to-pin normalization in memory.
     sa.config["deleteEdges"] = True
     sa.setInitialConditions(project=session_state.get("memory_model"))
     sa.original_rid = rid or sa.original_rid
@@ -145,7 +145,8 @@ def _inspect_model(session_state, identifier=None, *, offset=0, limit=20, defini
         key = sa._resolve_comp_key(identifier)
         component = _summary(key, sa.getComponentByKey(key))
         component["args"] = _select_args(component.get("args") or {}, fields)
-        return {"original_rid": sa.original_rid, "component": component}
+        return {"original_rid": sa.original_rid, "component": component,
+                "connection_audit": copy.deepcopy(getattr(sa, "connection_audit", {}))}
     if fields is not None:
         raise ValueError("fields requires a single component identifier")
     if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
@@ -154,6 +155,7 @@ def _inspect_model(session_state, identifier=None, *, offset=0, limit=20, defini
              if getattr(c, "shape", None) == "diagram-component"
              and (not definition or getattr(c, "definition", None) == definition)]
     return {"original_rid": sa.original_rid, "component_count": len(items),
+            "connection_audit": copy.deepcopy(getattr(sa, "connection_audit", {})),
             "diagram_edge_count": sum(getattr(c, "shape", None) == "diagram-edge"
                                       for c in sa.getAllComponents().values()),
             "components": [_summary(k, c, False) for k, c in items[offset:offset + limit]],
@@ -312,7 +314,7 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
                 "text": data[offset:offset + limit], "offset": offset,
                 "next_offset": offset + limit if offset + limit < len(data) else None, "characters": len(data)}
     if request.operation == "initialize" and request.options.get("reset") is True:
-        for key in ("toolbox", "memory_model", "previews", "current_version", "pending_preview", "result_pages"):
+        for key in ("toolbox", "memory_model", "previews", "current_version", "pending_preview", "result_pages", "connection_audit"):
             session_state.pop(key, None)
     sa = _toolbox(session_state)
     if request.operation in {"query", "initialize"}:
