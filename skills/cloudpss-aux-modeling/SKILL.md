@@ -90,6 +90,7 @@ sa.setInitialConditions()
 - 保存新副本：`operation=saveProject`；`target.new_rid` 必须是完整新 RID，名称和描述分别放在 `changes.name`、`changes.desc`。
 - EMT 输出通道：先调用 `query_emt_jobs` 列出可用 EMT/EMTPS 任务，由用户选择 `job_index`；再用 `configure_channel` 创建信号组件、建立 Pin 连接并将该通道加入所选任务的独立 `output_channels` 输出组。通道创建、元件信号参数修改和输出登记统一预览确认。
 - 删除输出通道：使用 `delete_channel`。它会清理目标通道在所有 EMT 输出组中的引用，删除清理后为空的输出组，并删除对应 `_newChannel` 组件；其他通道保留。
+- 批量输出通道：使用 `configure_channels_batch`，在同一 `job_index` 下提交 `changes.channels` 列表，一次预览、一次确认；执行结果逐项返回，允许部分成功并报告失败项。
 - 保存新 RID 后运行时会强制回读模型，并校验元件结构、配置、`jobs` 及 `output_channels`。
 - 取消预览：`operation=cancel_preview`，请求顶层提供 `preview_id`。
 - 重置会话：仅用户要求时使用 `operation=initialize`、`options.reset=true`，会丢弃未保存修改。

@@ -18,7 +18,7 @@ from .sdk_adapter import json_value, validate_rid
 SUPPORTED_OPERATIONS = {"initialize", "list_templates", "get_template_schema", "query",
                         "create", "update", "delete", "create_canvas", "delete_edges",
                         "query_connections", "query_edges", "refresh_topology", "saveProject", "cancel_preview", "read_result"}
-SUPPORTED_OPERATIONS |= {"query_emt_jobs", "configure_channel", "delete_channel"}
+SUPPORTED_OPERATIONS |= {"query_emt_jobs", "configure_channel", "delete_channel", "configure_channels_batch"}
 CONFIRMATIONS = {"execute", "confirmed", "confirm", "确认执行", "确认"}
 PREVIEW_TTL = 1800
 OUTPUT_LIMIT = 12000
@@ -357,12 +357,36 @@ def _delete_channel(sa, request):
     return {"deleted_channel": key, "removed_output_groups": removed_groups}
 
 
+def _configure_channels_batch(sa, request):
+    items = request.changes.get("channels")
+    if not isinstance(items, list) or not items:
+        raise ValueError("changes.channels must be a nonempty list")
+    results, failures = [], []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            failures.append({"index": index, "error": "channel item must be an object"}); continue
+        target = {"component": item.get("component"), "job_index": request.target.get("job_index"),
+                  "signal_type": item.get("signal_type", "current"), "signal_arg": item.get("signal_arg")}
+        changes = {k: item[k] for k in ("name", "channel_key", "sample_rate", "compression") if k in item}
+        try:
+            results.append({"index": index, **_configure_channel(sa, EditRequest("configure_channel", target, changes))})
+        except Exception as exc:
+            failures.append({"index": index, "component": item.get("component"),
+                             "error_type": type(exc).__name__, "error": str(exc)})
+    if failures and not results:
+        raise ValueError(f"All batch channel items failed: {failures}")
+    return {"batch": True, "requested": len(items), "succeeded": results,
+            "failed": failures, "partial_success": bool(failures)}
+
+
 def _edit(sa, request):
     operation = request.operation
     if operation == "configure_channel":
         return _configure_channel(sa, request)
     if operation == "delete_channel":
         return _delete_channel(sa, request)
+    if operation == "configure_channels_batch":
+        return _configure_channels_batch(sa, request)
     allowed = {"create": {"args", "pins", "label"}, "update": {"args", "pins", "label"},
                "create_canvas": {"name"}, "delete": set(), "delete_edges": set()}
     unknown = set(request.changes) - allowed[operation]
@@ -437,6 +461,7 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
         "saveProject": {"new_rid"}, "cancel_preview": set(),
         "query_emt_jobs": set(), "configure_channel": {"component", "identifier", "job_index", "signal_type", "signal_arg"},
         "delete_channel": {"channel", "identifier", "key", "label"},
+        "configure_channels_batch": {"job_index"},
         "read_result": {"result_id"},
     }
     for field in ("target", "changes", "options"):
