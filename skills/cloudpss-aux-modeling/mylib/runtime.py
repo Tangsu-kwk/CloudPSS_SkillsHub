@@ -231,6 +231,10 @@ def _job_value(job, key, default=None):
     return job.get(key, default) if isinstance(job, dict) else getattr(job, key, default)
 
 
+def _source_text(value):
+    return value.get("source") if isinstance(value, dict) and "source" in value else value
+
+
 def _job_args(job):
     args = _job_value(job, "args", None)
     if args is None:
@@ -280,6 +284,24 @@ def _configure_channel(sa, request):
         raise ValueError("Choose an EMT job with target.job_index")
     name = request.changes.get("name") or f"{component}_{signal_type}"
     channel_key = request.changes.get("channel_key") or f"{component}_{signal_type}_channel"
+    # Reuse an existing channel when its signal name and target output type match.
+    existing = [k for k, c in sa.getAllComponents().items()
+                if getattr(c, "definition", None) == "model/CloudPSS/_newChannel"
+                and _source_text(getattr(c, "args", {}).get("Name")) == name]
+    if existing:
+        channel_key = existing[0]
+        source.args = merge_fields(source.args, {signal_arg: name})
+        job = next(j for i, j in jobs if i == job_index)
+        outputs = _job_args(job).setdefault("output_channels", [])
+        linked = [e for e in outputs if channel_key in (e.get("4", []) if isinstance(e, dict) else [])]
+        if not linked:
+            entry = {"0": name, "1": request.changes.get("sample_rate", 1000),
+                     "2": request.changes.get("compression", "compressed"), "3": 1, "4": [channel_key]}
+            outputs.append(entry)
+        else:
+            entry = linked[0]
+        return {"component": _summary(component, source), "channel": _summary(channel_key, sa.getComponentByKey(channel_key)),
+                "job_index": job_index, "output_channel": copy.deepcopy(entry), "reused": True}
     if channel_key in sa.getAllComponents(): raise ValueError(f"Channel already exists: {channel_key}")
     channel_template = sa.compLib.get("_newChannel")
     if not channel_template: raise ValueError("_newChannel is missing from component library")
@@ -287,8 +309,10 @@ def _configure_channel(sa, request):
     sa.addComp(channel_template, channel_key, getattr(source, "canvas", None),
                getattr(source, "position", None), args={"Name": name}, pins={"0": name},
                label=name)
-    sample_rate = request.changes.get("sample_rate", 1000)
-    compression = request.changes.get("compression", "compressed")
+    existing_outputs = _job_args(next(j for i,j in jobs if i == job_index)).get("output_channels") or []
+    base = existing_outputs[0] if existing_outputs and isinstance(existing_outputs[0], dict) else {}
+    sample_rate = request.changes.get("sample_rate", base.get("1", 1000))
+    compression = request.changes.get("compression", base.get("2", "compressed"))
     args = _job_args(next(j for i,j in jobs if i == job_index))
     outputs = args.setdefault("output_channels", [])
     outputs.append({"0": name, "1": sample_rate, "2": compression, "3": 1, "4": [channel_key]})
