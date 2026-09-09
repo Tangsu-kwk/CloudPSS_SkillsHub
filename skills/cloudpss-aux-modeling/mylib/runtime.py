@@ -235,6 +235,18 @@ def _source_text(value):
     return value.get("source") if isinstance(value, dict) and "source" in value else value
 
 
+def _signal_candidates(sa, source, signal_type):
+    """Return real template fields that can carry the requested output signal."""
+    args = getattr(source, "args", {}) or {}
+    key = signal_type.lower()
+    exact = {"current": {"i", "ia", "ib", "ic", "iname", "ir", "is", "it_o", "it_inst"},
+             "voltage": {"v", "va", "vb", "vc", "vname", "vi", "vt_o"},
+             "power": {"p", "pa", "pb", "pc", "pname"}}.get(key, set())
+    candidates = [k for k in args if str(k).lower() in exact]
+    if len(candidates) <= 1: return candidates
+    return sorted(candidates)
+
+
 def _job_args(job):
     args = _job_value(job, "args", None)
     if args is None:
@@ -275,8 +287,13 @@ def _configure_channel(sa, request):
     component = sa._resolve_comp_key(request.target.get("component") or _identifier(request))
     source = sa.getComponentByKey(component)
     signal_type = str(request.target.get("signal_type") or "current").lower()
-    signal_arg = request.target.get("signal_arg") or {"current": "I", "voltage": "V", "power": "P"}.get(signal_type)
-    if not signal_arg: raise ValueError("signal_arg is required for this signal_type")
+    signal_arg = request.target.get("signal_arg")
+    candidates = _signal_candidates(sa, source, signal_type)
+    if signal_arg is None:
+        if len(candidates) == 1: signal_arg = candidates[0]
+        elif not candidates: raise ValueError(f"No {signal_type} output field found in the selected template; specify target.signal_arg")
+        else: raise ValueError(f"Multiple {signal_type} output fields found: {candidates}; specify target.signal_arg")
+    if signal_arg not in getattr(source, "args", {}): raise ValueError(f"signal_arg {signal_arg!r} is not a parameter of the selected component")
     job_index = request.target.get("job_index")
     jobs = _emt_jobs(sa)
     if not jobs: raise ValueError("No EMT/EMTPS job is available")
