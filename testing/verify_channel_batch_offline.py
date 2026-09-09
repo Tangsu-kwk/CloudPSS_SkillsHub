@@ -5,6 +5,7 @@ from mylib.runtime import EditRequest, _configure_channels_batch, _delete_channe
 
 class C:
     def __init__(self, **kw): self.__dict__.update(kw)
+    def toJSON(self): return dict(self.__dict__)
 
 class SA:
     def __init__(self):
