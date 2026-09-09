@@ -1,12 +1,6 @@
 ---
 name: cloudpss-aux-modeling
 description: 使用 CloudPSS 组件库进行模型元件增删改查、接线、拓扑检查和确认后保存新 RID；不执行短路仿真或报告。
-compatibility:
-  python: ">=3.12"
-  requires_env: true
-  required_env_vars:
-    - SIMSTUDIO_TOKEN
-  notes: 需要 CloudPSS Python SDK 和一个可访问的 CloudPSS 模型；离线契约测试不需要 token。
 metadata:
   short-description: CloudPSS 通用辅助建模
   owner: CloudPSS SkillsHub
@@ -83,10 +77,8 @@ sa.setInitialConditions()
 ## 任务路由
 
 - 列举模板：`operation=list_templates`；用户未指定准确模板键时先调用。
-- 查看模板字段：`operation=get_template_schema`，`target.template_key` 使用列表返回的精确键。
+- 查看模板字段：`operation=get_template_schema`，`target.template_key` 使用列表返回的精确键。返回模板默认值及已收录的官方参数、引脚资料；检查 `metadata_status` 和 `metadata_evidence`。条件引脚的 `condition`、`visible` 保留原值，不能把默认隐藏理解为引脚不存在。
 - 查询模型：`operation=query`；`target.identifier/key/label` 查询单个元件，`target.definition` 按类型分页查询。
-- 查询连接：`operation=query_connections`；按 `target.identifier`（可附 `pin`）或 `target.node` 查询当前 pin/拓扑节点及同网端点。
-- 查询图形边：`operation=query_edges`；`target.view` 为 `original`（初始化转换前快照）或 `current`。原始快照不存在时明确返回不可用，不从删除预览猜测。
 - 查询连接：`operation=query_connections`；按 `target.identifier`（可附 `pin`）或 `target.node` 查询当前 pin/拓扑节点及同网端点。
 - 查询图形边：`operation=query_edges`；`target.view` 为 `original`（初始化转换前快照）或 `current`。原始快照不存在时明确返回不可用，不从删除预览猜测。
 - 新增元件：`operation=create`；模板键和画布放入 `target`，参数、pins、label 放入 `changes`。
@@ -96,6 +88,9 @@ sa.setInitialConditions()
 - 删除图形边：`operation=delete_edges`；先刷新拓扑，再预览和确认。
 - 刷新拓扑：`operation=refresh_topology`，直接返回结构检查结果，不保存模型。
 - 保存新副本：`operation=saveProject`；`target.new_rid` 必须是完整新 RID，名称和描述分别放在 `changes.name`、`changes.desc`。
+- EMT 输出通道：先调用 `query_emt_jobs` 列出可用 EMT/EMTPS 任务，由用户选择 `job_index`；再用 `configure_channel` 创建信号组件、建立 Pin 连接并将该通道加入所选任务的独立 `output_channels` 输出组。通道创建、元件信号参数修改和输出登记统一预览确认。
+- 删除输出通道：使用 `delete_channel`。它会清理目标通道在所有 EMT 输出组中的引用，删除清理后为空的输出组，并删除对应 `_newChannel` 组件；其他通道保留。
+- 保存新 RID 后运行时会强制回读模型，并校验元件结构、配置、`jobs` 及 `output_channels`。
 - 取消预览：`operation=cancel_preview`，请求顶层提供 `preview_id`。
 - 重置会话：仅用户要求时使用 `operation=initialize`、`options.reset=true`，会丢弃未保存修改。
 - 高级故障/N-1方法未迁入，不调用不存在的方法。仿真和报告交给其他 Skill。
@@ -118,6 +113,7 @@ canvas
 ## 参考资料
 
 - [api-contracts.md](references/api-contracts.md)：Agent 请求格式、保存状态与领域方法迁移差异。
+- [component-pin-schema.json](references/component-pin-schema.json)：已收录的官方字段资料；通常通过模板查询入口按需获取，不必全文读取。
 - [data-model.md](references/data-model.md)：Project、Revision、Component、cells、pins 等数据结构。
 - [crud-workflows.md](references/crud-workflows.md)：初始化、查询、新增、修改和连续迭代流程。
 - [validation-checklist.md](references/validation-checklist.md)：真实案例验收清单和证据等级。

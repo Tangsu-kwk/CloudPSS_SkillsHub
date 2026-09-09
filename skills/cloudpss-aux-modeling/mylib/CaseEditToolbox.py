@@ -87,6 +87,9 @@ class CaseEditToolbox:
         self.loadComponentLibrary()
         self.pos = {}
         self.topo = None
+        self.connection_edges_before = {}
+        self.connection_components_before = {}
+        self.connection_snapshot_available = False
         edge_count_before = sum(1 for c in self.getAllComponents().values()
                                 if getattr(c, "shape", None) == "diagram-edge")
         self.connection_audit = {
@@ -235,8 +238,8 @@ class CaseEditToolbox:
                 n = e['topology_node']
                 return ('topology', str(n)) if n not in (None, '') else None
             return ('named_pin', e['node']) if e['node'] else None
-        selected = [e for e in entries if (e['key'] == key and (pin is None or e['pin'] == pin))
-                    if key is not None] if key is not None else [e for e in entries if e['node'] == node]
+        selected = ([e for e in entries if e['key'] == key and (pin is None or e['pin'] == pin)]
+                    if key is not None else [e for e in entries if e['node'] == node])
         groups = {group(e) for e in selected} - {None}
         endpoints = {(e['key'], e['pin']) for e in selected}
         items = [dict(e, selected=(e['key'], e['pin']) in endpoints)
@@ -253,6 +256,8 @@ class CaseEditToolbox:
         """
         if view not in {"original", "current"}:
             raise ValueError("view must be original or current")
+        if identifier is not None and (not isinstance(identifier, str) or not identifier.strip()):
+            raise ValueError("identifier must be nonempty")
         historical = view == "original"
         if historical:
             edges = self.connection_edges_before

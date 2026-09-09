@@ -51,7 +51,19 @@ def verify():
         s = state()
         assert len(edit({"operation": "list_templates"}, {})["templates"]) == len(library)
         for key, template in library.items():
-            schema = edit({"operation": "get_template_schema", "target": {"template_key": key}}, {})
+            catalog_state = {}
+            schema = edit({"operation": "get_template_schema", "target": {"template_key": key}}, catalog_state)
+            # Enriched schemas can exceed the public output bound. Follow the
+            # same read_result protocol as the Agent, retaining every field.
+            if "read_request" in schema:
+                read_request, parts = schema["read_request"], []
+                while True:
+                    page = edit(read_request, catalog_state)
+                    parts.append(page["text"])
+                    if page["next_offset"] is None:
+                        break
+                    read_request["options"]["offset"] = page["next_offset"]
+                schema = json.loads("".join(parts))
             assert set(schema["parameters"]) == set(template["args"])
             before = copy.deepcopy(json_value(s["memory_model"]))
             request = {"operation": "create", "target": {"template_key": key, "canvas": "canvas_0"}}

@@ -4638,6 +4638,13 @@
           "type": "choice"
         }
       }
+    },
+    "Harmonic_continuous_injection": {
+      "definition": "model/CloudPSS/Harmonic_continuous_injection",
+      "status": "unavailable",
+      "evidence": null,
+      "pins": {},
+      "parameters": {}
     }
   }
 }

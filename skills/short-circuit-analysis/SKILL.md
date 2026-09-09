@@ -2,12 +2,6 @@
 name: short-circuit-analysis
 description: 使用 CloudPSS SDK 对 EMT-ready 模型执行真实 EMT 仿真，读取电流通道或功率/电压等效通道，计算峰值电流、故障窗口 RMS、故障前/后 RMS、直流偏置估计、短路容量近似值，并可由短路容量推导 PCC 戴维南等值阻抗、SCR/ESCR 和弱网等级，最终返回真实 CloudPSS 仿真任务 ID。当用户需要短路电流、故障电流、短路容量、断路器开断电流水平、保护整定初筛、戴维南等值、短路比、SCR/ESCR、弱电网判定或已有短路场景的 EMT 波形分析时使用。该 skill 只依赖公开 cloudpss 包和本 skill 的 bundled runtime，不依赖其他 skill 或共享包。
 license: Internal Use Only
-compatibility:
-  python: ">=3.11"
-  requires_env: true
-  required_env_vars:
-    - SIMSTUDIO_TOKEN
-  notes: SimBot provides CloudPSS credentials; CLOUDPSS_TOKEN and CLOUDPSS_LOGIN_TOKEN are supported aliases.
 metadata:
   owner: cloudpss-team
   category: analysis
@@ -69,7 +63,7 @@ Do not reimplement any step in an ad hoc command.
 runtime 不扫描全部 EMT 通道，也不根据通道名称猜测目标通道。若模型没有电流通道，可以用 `equivalent_pairs` 指定功率/电压通道，按三相公式估算等效电流。
 
 - `analysis`
-  - `base_voltage_kv`: 基准线电压，优先由活动故障母线的模型 `VBase` 自动解析；如果自动解析失败，必须由调用方显式提供，禁止静默使用默认值。
+  - `base_voltage_kv`: 基准线电压，优先由活动故障母线的模型 `VBase` 自动解析；必须定位实际连接母线并取得有效值；用户提供值仅用于核对，不能替代母线解析。
   - `target_fault_id`: 多个活动故障时必须指定的目标故障元件 ID（也接受唯一的故障名称）；只有一个活动故障时可省略。
   - `calibration_scale`: 用户明确提供的额外校准系数，默认 `1.0`。电流单位换算由 runtime 根据 CloudPSS 元件参数元数据自动确定；不得使用本字段绕过未知单位。
   - `power_scale_mw`: 功率通道缩放系数，默认 `1.0`，用于等效电流估算。
@@ -104,7 +98,7 @@ runtime 不扫描全部 EMT 通道，也不根据通道名称猜测目标通道�
 5. 在 `model_parameters` 阶段完成分析前置检查：
    - 定位活动故障元件；
    - 若只有一个活动故障则自动将其作为目标；若有多个活动故障，必须由调用方明确指定一个目标故障元件，不得默认取第一个；其他活动故障仍保留在同一次 EMT 场景中；
-   - 通过 `diagram-edge` 解析故障母线；
+   - 优先通过电气 Pin 与当前平台拓扑解析故障母线，同时保留并核对 `diagram-edge` 接线；
    - 读取故障母线的 `Name` 和 `VBase`；
    - 读取故障元件的 `fs`、`fe` 和 `fault_type`；
    - 读取故障元件或故障母线声明的电流通道；
@@ -133,7 +127,7 @@ runtime 不扫描全部 EMT 通道，也不根据通道名称猜测目标通道�
 - 如果可用，应从活动故障母线的 `VBase` 解析 `analysis.base_voltage_kv`。
   在结果中包含解析出的数值及其来源路径。模型没有基准电压时，必须明确报错或要求调用方提供，
   不得静默使用 230 kV 作为回退值。
-- 如果故障组件通过 `diagram-edge` 连接到母线，则根据模型拓扑解析活动故障母线；
+- 以故障电气 Pin 和当前拓扑定位同节点母线；保留 `diagram-edge` 直接或边分支连接解析，不能跨线路、变压器寻找其他母线；
   使用该母线的 `Name` 以及对应的 `Bus_<n>_Vbase` 变量。
   在正式入口启动后，不得要求 Agent 通过探索组件的方式查找这些信息。
 - 保留原始 CloudPSS 通道名称。除非模型明确提供了对应关系，
@@ -203,3 +197,13 @@ runtime 按任务保存到 `results/short_circuit_analysis_result/<task_id>/`：
 - 戴维南等值由已计算短路容量推导；若短路容量本身来自功率/电压等效电流，`Zth` 和 SCR 也属于同一近似链路。
 - SCR/ESCR 是弱网初筛，不替代 IEEE 2800/NERC 接入研究、控制相互作用研究或 IEC 60909 设备校核级短路计算。
 - 如果目标通道不存在、分析时间窗无数据、样本数不足或 EMT 仿真失败，runtime 直接失败；不得使用发电机、线路或其他支路通道替代，也不执行 KCL 汇总。
+
+## Pin 与图形边模型兼容
+
+正式分析读取目标故障后，按当前 currentConfig 获取一次平台 EMT 拓扑（maximumDepth=0）。会提交临时 revision，但不保存/覆盖模型、不修改 Pin 或图形边、不新增通道。拓扑服务失败或结构解析失败时在 model_parameters 阶段停止，本版本不自动降级绕过平台错误。
+
+优先按目标故障电气 Pin 的拓扑归属查母线，排除与真实 GND 同节点的接地端。Pin 名称只作同画布匹配线索，不把 args.I/V 信号或跨画布同名字符串当作电气连接。图形边及边到边分支继续支持，不穿过元件内部；Pin 与图形边证据须与当前拓扑一致。多个候选母线仅在同一拓扑网络且有效 VBase 一致时接受，并记录全部 key；不能按名称猜测故障母线或从全模型选一个电压。
+
+VBase 首先读取已定位母线参数；表达式只接受平台拓扑返回的有效数值，不在本地执行。原有与已定位母线对应的图纸变量路径保留。用户输入电压与模型不同时仍使用模型值并记录冲突；模型值缺失则停止。连接来源 connection_basis、候选母线 key、拓扑 revision/config 和参数路径保存在 model_parameters.json 的 voltage_resolution 以及 analysis_result.json 的 fault_connection_resolution。
+
+回归入口：scripts/verify_fault_connections.py（离线连接边界）、scripts/verify_runtime_contract.py（原有分析契约）、scripts/verify_component_metadata.py（电流单位）。真实仿真须另行验证，离线通过不代表 EMT 成功。

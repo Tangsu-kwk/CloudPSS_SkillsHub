@@ -15,6 +15,7 @@ from typing import Any
 from cloudpss import Model, setToken
 
 from .component_metadata import resolve_current_parameter_metadata
+from .connection_resolution import current_topology, resolve as resolve_connections, number as voltage_number
 
 
 DEFAULT_MODEL_RID = "model/CloudPSS/IEEE3"
@@ -400,78 +401,53 @@ def _resolve_base_voltage(
     component_json: dict[str, Any],
     faults: dict[str, Any],
     target_fault: dict[str, Any] | None = None,
+    *, topology: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    variables = _diagram_variables(model_json)
     target_fault = target_fault or _resolve_target_fault(faults)
-    topology_fault = _fault_bus_from_topology(model_json, component_json, target_fault)
-    fault_bus = topology_fault["bus"] or _fault_bus_name(target_fault)
-    candidates: list[dict[str, Any]] = []
-    fault_bus_candidate: dict[str, Any] | None = None
-    bus_current_channel: str | None = None
-    if fault_bus:
-        # Prefer the VBase declared by the bus that is actually connected to
-        # the active fault.  Diagram variables are a useful fallback, but a
-        # model may only expose the bus base voltage on the bus component.
-        fault_bus_component_id = topology_fault.get("component_id")
-        fault_bus_component = (
-            component_json.get(fault_bus_component_id)
-            if fault_bus_component_id
-            else None
-        )
-        if fault_bus_component is None and fault_bus_component_id:
-            fault_bus_component = _diagram_cells(model_json).get(fault_bus_component_id)
-        component_args = (
-            fault_bus_component.get("args")
-            if isinstance(fault_bus_component, dict)
-            and isinstance(fault_bus_component.get("args"), dict)
-            else {}
-        )
-        bus_definition = (
-            str(fault_bus_component.get("definition") or "")
-            if isinstance(fault_bus_component, dict)
-            else ""
-        )
-        bus_current_channel = _source_text(component_args.get("I"))
-        component_value = _source_number(component_args.get("VBase"))
-        if component_value is not None and component_value > 0:
-            fault_bus_candidate = {
-                "path": f"components.{fault_bus_component_id}.args.VBase",
-                "value_kv": component_value,
-            }
-            candidates.append(fault_bus_candidate)
-
-        match = re.fullmatch(r"Bus(\d+)", fault_bus, re.IGNORECASE)
-        key = f"Bus_{match.group(1)}_Vbase" if match else f"{fault_bus}_Vbase"
-        value = _source_number(variables.get(key))
-        if value is not None and value > 0 and fault_bus_candidate is None:
-            fault_bus_candidate = {
-                "path": f"revision.implements.diagram.variables.{key}",
-                "value_kv": value,
-            }
-            candidates.append(fault_bus_candidate)
-    for key, value in variables.items():
-        if str(key).endswith("_Vbase"):
-            number = _source_number(value)
-            if number is not None and number > 0:
-                candidates.append({"path": f"revision.implements.diagram.variables.{key}", "value_kv": number})
-    candidates.extend(_find_voltage_candidates(model_json))
-    candidates.extend(_find_voltage_candidates(component_json, "components"))
-    # Do not select an arbitrary voltage level from a multi-voltage model.
-    if fault_bus_candidate is not None:
-        chosen = fault_bus_candidate
-    else:
-        distinct_values = {candidate["value_kv"] for candidate in candidates}
-        chosen = candidates[0] if len(distinct_values) == 1 and candidates else None
+    cells = {**_diagram_cells(model_json), **component_json}
+    connection = resolve_connections(cells, target_fault, topology)
+    ids = connection["component_ids"]
+    variables = _diagram_variables(model_json)
+    candidates = []
+    for key in ids:
+        bus = cells[key]
+        raw = (bus.get("args") or {}).get("VBase")
+        value = voltage_number(raw)
+        path = f"components.{key}.args.VBase"
+        if value is None and topology is not None:
+            value = voltage_number(topology.get("components", {}).get('/'+key, {}).get("args", {}).get("VBase"))
+            if value is not None:
+                path = f"topology.components./{key}.args.VBase"
+        # Existing diagram-variable support remains tied to a connected bus.
+        if value is None and raw is None:
+            name = _component_name(key, bus)
+            match = re.fullmatch(r"Bus(\d+)", name, re.IGNORECASE)
+            variable = f"Bus_{match.group(1)}_Vbase" if match else f"{name}_Vbase"
+            value = voltage_number(variables.get(variable))
+            if value is not None:
+                path = f"revision.implements.diagram.variables.{variable}"
+        if value is None:
+            raise ValueError(f"Connected fault bus {key} has no valid resolved VBase")
+        candidates.append({"component_id": key, "path": path, "value_kv": value})
+    if candidates and any(not math.isclose(c["value_kv"], candidates[0]["value_kv"], rel_tol=1e-9)
+                          for c in candidates[1:]):
+        raise ValueError("Connected fault buses declare conflicting VBase values")
+    chosen = candidates[0] if candidates else None
+    # A representative ID preserves the legacy shape. All equivalent buses
+    # and parameter evidence are also retained; no channel is chosen by order.
+    key = ids[0] if ids else None
+    bus = cells.get(key, {})
     return {
         "value_kv": chosen["value_kv"] if chosen else None,
         "source": chosen["path"] if chosen else None,
-        "fault_bus": fault_bus,
-        "fault_bus_component_id": topology_fault["component_id"],
-        "fault_bus_edge_id": topology_fault["edge_id"],
-        "bus_current_channel": bus_current_channel,
-        "bus_definition": bus_definition if fault_bus else None,
-        "ambiguous": bool(candidates) and chosen is None,
-        "candidates": candidates,
+        "fault_bus": _component_name(key, bus) if key else None,
+        "fault_bus_component_id": key,
+        "fault_bus_component_ids": ids,
+        "fault_bus_edge_id": connection["edge_ids"][0] if connection["edge_ids"] else None,
+        "bus_current_channel": _source_text((bus.get("args") or {}).get("I")) if len(ids) == 1 else None,
+        "bus_definition": bus.get("definition"),
+        "ambiguous": False, "candidates": candidates, "connection": connection,
+        "connection_basis": connection["connection_basis"],
     }
 
 
@@ -568,9 +544,11 @@ def inspect_model(
     revision = model_json.get("revision", {}) if isinstance(model_json, dict) else {}
     faults = _fault_context(component_json)
     target_fault = _resolve_target_fault(faults, target_fault_id)
+    topology, topology_evidence = current_topology(model) if target_fault else (None, None)
     voltage_resolution = _resolve_base_voltage(
-        model_json, component_json, faults, target_fault
+        model_json, component_json, faults, target_fault, topology=topology
     )
+    voltage_resolution["topology_evidence"] = topology_evidence
     declared_current_sources = _declared_current_channel_sources(
         faults, voltage_resolution, target_fault
     )
@@ -622,7 +600,7 @@ def _default_analysis_config(snapshot: dict[str, Any]) -> dict[str, Any]:
     if base_voltage is None and resolution.get("ambiguous"):
         raise ValueError(
             "The model has multiple possible base voltages and none is tied to the active fault; "
-            "provide analysis.base_voltage_kv explicitly."
+            "resolve the actual connected fault bus before analysis."
         )
     if base_voltage is None:
         raise ValueError(
@@ -1177,6 +1155,11 @@ def _write_analysis_code_snapshot(
     runtime_source = runtime_source.replace(
         "from .component_metadata import resolve_current_parameter_metadata\n", "", 1
     )
+    runtime_source = runtime_source.replace(
+        "from .connection_resolution import current_topology, resolve as resolve_connections, number as voltage_number\n", "", 1
+    )
+    connection_source = runtime_path.with_name("connection_resolution.py").read_text(encoding="utf-8")
+    connection_source += "\nresolve_connections = resolve\nvoltage_number = number\n"
     invocation = (
         "\n\nif __name__ == '__main__':\n"
         f"    _REPRODUCTION_SOURCE = {source!r}\n"
@@ -1189,6 +1172,7 @@ def _write_analysis_code_snapshot(
         "Waveform samples and authentication credentials are intentionally not embedded.\n"
         '"""\nfrom __future__ import annotations\n\n'
         + metadata_source
+        + "\n\n" + connection_source
         + "\n\n"
         + runtime_source
         + invocation
@@ -1248,6 +1232,7 @@ def analyze_model_from_source(
             timeout=timeout,
         )
         result["task_id"] = task_id
+        result["fault_connection_resolution"] = copy.deepcopy(snapshot.get("voltage_resolution"))
         result["provenance"] = {
             "model_parameters": "CloudPSS SDK Model.toJSON and Model.getAllComponents",
             "waveform": "CloudPSS SDK EMTResult.getPlotChannelData",

@@ -26,6 +26,8 @@
 | list_templates | 无 | 无；不需要模型 | 无 |
 | get_template_schema | template_key | 无；不需要模型 | 无 |
 | query | identifier/key/label 查询单个；definition 按类型 | options.offset=0、limit=20（1–100） | 无 |
+| query_connections | identifier，可选 pin；或 node（精确 Pin 连接名） | options.offset=0、limit=20（1–100） | 无 |
+| query_edges | 可选 identifier；view=original/current | options.offset=0、limit=20（1–100） | 无 |
 | create | template_key、canvas；可选 key_prefix | changes.args、pins、label | 预览后确认 |
 | update | identifier/key/label | changes.args、pins、label | 预览后确认 |
 | delete | identifier/key/label | 无 | 预览后确认 |
@@ -93,4 +95,29 @@ saveProject 的内部实现只调用 Model.create；禁止改用 Model.save(key)
 
 故障/N-1/量测高级方法尚未迁入；可以用库中现有模板做基础 CRUD，但不能声称这些高级方法已经可调用。仿真和报告不属于本 Skill。
 
-| getConnections()、getDiagramEdges() | 只读查询当前 pin/拓扑网络及初始化前图形边审计；不创建边、不修改模型 |
+
+
+## 元件资料与连接查询
+
+`get_template_schema` 从本地模板保留参数/Pin 默认值和参数 storage_type，再合并 definition RID 完全匹配的 `component-pin-schema.json` 资料。`metadata_status` 为 available、unavailable 或 definition_mismatch；available 仅表示收录了该定义的资料，不保证所有字段齐全。`metadata_evidence` 给出来源 RID 和取得日期。缺失单位等字段保持 null，不从名称猜测。choices、condition、dim、visible 保留官方原值；electrical 是连接类别，不是信号方向。当前资料不参与新增数值范围或表达式限制，物理有效性仍需另验。
+
+例如查看变压器接法和端子：
+```json
+{"operation":"get_template_schema","target":{"template_key":"_newTransformer_3p2w"},"options":{"fields":["YD1","YD2","Tap"]}}
+```
+
+查询某元件端子的同网端点（编号须先查模板/实例）：
+```json
+{"operation":"query_connections","target":{"identifier":"Bus12","pin":"0"},"options":{"offset":0,"limit":20}}
+```
+
+`target.node` 指精确的 Pin 连接名，不是平台生成的 topology_node 编号。返回 basis、selected_pin_count、分页 items；每项含 key、label、canvas、pin、node、topology_node、selected。有最近刷新拓扑时按其节点归属查询；编辑后拓扑缓存失效，退回 named_pins_only。后者只报告同名匹配，不能据此保证跨画布的物理连通。空 Pin 不组成公共网络。查询不自动刷新；首次调用仍需正常模型初始化，初始化可能提交临时 revision 进行连接转换。
+
+查询初始化前 Bus12 所关联的图形边：
+```json
+{"operation":"query_edges","target":{"identifier":"Bus12","view":"original"},"options":{"limit":20}}
+```
+
+original 是当前会话初始化转换时的历史快照，保留删除元件之前的记录，不代表当前接线。已转换模型重新加载后通常无原始快照，返回 snapshot_available=false。current 只反映当前 cells 中的图形边。两种视图都保留原始 source/target 字段；查询边分支可穿过边到边连接，不穿过元件内部。分页使用 next_offset；这两个连接查询不接受 options.fields。
+
+离线回归：`python scripts/verify_connections.py` 覆盖连接与快照生命周期、模板资料及表达式保留；不代表云端拓扑或仿真通过。

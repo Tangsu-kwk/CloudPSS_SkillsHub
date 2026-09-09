@@ -7,6 +7,7 @@ import hashlib
 import json
 import time
 import uuid
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -17,6 +18,7 @@ from .sdk_adapter import json_value, validate_rid
 SUPPORTED_OPERATIONS = {"initialize", "list_templates", "get_template_schema", "query",
                         "create", "update", "delete", "create_canvas", "delete_edges",
                         "query_connections", "query_edges", "refresh_topology", "saveProject", "cancel_preview", "read_result"}
+SUPPORTED_OPERATIONS |= {"query_emt_jobs", "configure_channel", "delete_channel"}
 CONFIRMATIONS = {"execute", "confirmed", "confirm", "确认执行", "确认"}
 PREVIEW_TTL = 1800
 OUTPUT_LIMIT = 12000
@@ -181,13 +183,32 @@ def _catalog(request, state):
     if key not in sa.compLib:
         raise ValueError("Unknown template_key; call list_templates first")
     template = sa.compLib[key]
+    metadata_path = Path(__file__).resolve().parents[1] / "references/component-pin-schema.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))["templates"].get(key, {})
+    # A custom library can reuse a template key for another definition.
+    matched = bool(metadata) and metadata.get("definition") == template.get("definition")
+    status = metadata.get("status", "available") if matched else (
+        "definition_mismatch" if metadata else "unavailable")
+    evidence = copy.deepcopy(metadata.get("evidence")) if matched else None
+    if not matched or status != "available":
+        metadata = {}
+    parameters = {}
+    for name, default in _select_args(template.get("args", {}), request.options.get("fields")).items():
+        descriptor = copy.deepcopy(metadata.get("parameters", {}).get(name, {}))
+        parameters[name] = {"type": None, "unit": None, "description": None, **descriptor,
+                            "default": copy.deepcopy(default), "storage_type": type(default).__name__}
+    pins = {}
+    for name, default in template.get("pins", {}).items():
+        descriptor = copy.deepcopy(metadata.get("pins", {}).get(name, {}))
+        connection = descriptor.get("connection")
+        pins[name] = {"description": None, "connection": None, **descriptor,
+                      "default": copy.deepcopy(default),
+                      "direction": connection if connection in {"input", "output", "inout"} else None}
     return {"template_key": key, "definition": template.get("definition"), "label": template.get("label"),
-            "parameters": {k: {"default": copy.deepcopy(v), "storage_type": type(v).__name__,
-                                "type": None, "unit": None, "description": None}
-                           for k, v in _select_args(template.get("args", {}), request.options.get("fields")).items()},
-            "pins": {k: {"default": v, "direction": None, "description": None}
-                     for k, v in template.get("pins", {}).items()},
-            "schema_source": "saSource.json template; engineering types/units not provided"}
+            "parameters": parameters, "pins": pins,
+            "metadata_status": status, "metadata_evidence": evidence,
+            "schema_source": "local template defaults; bundled platform metadata where definition matches",
+            "physical_validation": False}
 
 
 def _fingerprint(sa):
@@ -206,8 +227,101 @@ def _identifier(request):
     return request.target.get("identifier") or request.target.get("key") or request.target.get("label")
 
 
+def _job_value(job, key, default=None):
+    return job.get(key, default) if isinstance(job, dict) else getattr(job, key, default)
+
+
+def _job_args(job):
+    args = _job_value(job, "args", None)
+    if args is None:
+        args = {}
+        if isinstance(job, dict): job["args"] = args
+        else: setattr(job, "args", args)
+    return args
+
+
+def _emt_jobs(sa):
+    jobs = getattr(sa.project, "jobs", None) or []
+    return [(i, j) for i, j in enumerate(jobs)
+            if str(_job_value(j, "rid", "")) in {"function/CloudPSS/emtp", "function/CloudPSS/emtps"}]
+
+
+def _channel_rows(sa):
+    rows = []
+    for key, comp in sa.getAllComponents().items():
+        if getattr(comp, "definition", None) != "model/CloudPSS/_newChannel": continue
+        rows.append({"key": key, "label": getattr(comp, "label", None),
+                     "args": json_value(getattr(comp, "args", {})),
+                     "pins": json_value(getattr(comp, "pins", {}))})
+    return rows
+
+
+def _channel_job_rows(sa, channel_id=None):
+    rows = []
+    for ji, job in _emt_jobs(sa):
+        entries = _job_args(job).get("output_channels") or []
+        for ei, entry in enumerate(entries):
+            ids = entry.get("4", []) if isinstance(entry, dict) else []
+            if channel_id is None or channel_id in ids:
+                rows.append({"job_index": ji, "entry_index": ei, "entry": copy.deepcopy(entry)})
+    return rows
+
+
+def _configure_channel(sa, request):
+    component = sa._resolve_comp_key(request.target.get("component") or _identifier(request))
+    source = sa.getComponentByKey(component)
+    signal_type = str(request.target.get("signal_type") or "current").lower()
+    signal_arg = request.target.get("signal_arg") or {"current": "I", "voltage": "V", "power": "P"}.get(signal_type)
+    if not signal_arg: raise ValueError("signal_arg is required for this signal_type")
+    job_index = request.target.get("job_index")
+    jobs = _emt_jobs(sa)
+    if not jobs: raise ValueError("No EMT/EMTPS job is available")
+    if type(job_index) is not int or job_index not in {i for i, _ in jobs}:
+        raise ValueError("Choose an EMT job with target.job_index")
+    name = request.changes.get("name") or f"{component}_{signal_type}"
+    channel_key = request.changes.get("channel_key") or f"{component}_{signal_type}_channel"
+    if channel_key in sa.getAllComponents(): raise ValueError(f"Channel already exists: {channel_key}")
+    channel_template = sa.compLib.get("_newChannel")
+    if not channel_template: raise ValueError("_newChannel is missing from component library")
+    source.args = merge_fields(source.args, {signal_arg: name})
+    sa.addComp(channel_template, channel_key, getattr(source, "canvas", None),
+               getattr(source, "position", None), args={"Name": name}, pins={"0": name},
+               label=name)
+    sample_rate = request.changes.get("sample_rate", 1000)
+    compression = request.changes.get("compression", "compressed")
+    args = _job_args(next(j for i,j in jobs if i == job_index))
+    outputs = args.setdefault("output_channels", [])
+    outputs.append({"0": name, "1": sample_rate, "2": compression, "3": 1, "4": [channel_key]})
+    return {"component": _summary(component, source), "channel": _summary(channel_key, sa.getComponentByKey(channel_key)),
+            "job_index": job_index, "output_channel": outputs[-1]}
+
+
+def _delete_channel(sa, request):
+    key = sa._resolve_comp_key(request.target.get("channel") or _identifier(request))
+    comp = sa.getComponentByKey(key)
+    if getattr(comp, "definition", None) != "model/CloudPSS/_newChannel": raise ValueError("Target is not an output channel")
+    removed_groups = []
+    for ji, job in _emt_jobs(sa):
+        args = _job_args(job); outputs = args.get("output_channels") or []; kept = []
+        for entry in outputs:
+            ids = entry.get("4", []) if isinstance(entry, dict) else []
+            if key not in ids:
+                kept.append(entry)
+                continue
+            remaining = [x for x in ids if x != key]
+            if remaining: entry = dict(entry); entry["4"] = remaining; kept.append(entry)
+            else: removed_groups.append({"job_index": ji, "entry": copy.deepcopy(entry)})
+        args["output_channels"] = kept
+    sa.deleteComponent(key)
+    return {"deleted_channel": key, "removed_output_groups": removed_groups}
+
+
 def _edit(sa, request):
     operation = request.operation
+    if operation == "configure_channel":
+        return _configure_channel(sa, request)
+    if operation == "delete_channel":
+        return _delete_channel(sa, request)
     allowed = {"create": {"args", "pins", "label"}, "update": {"args", "pins", "label"},
                "create_canvas": {"name"}, "delete": set(), "delete_edges": set()}
     unknown = set(request.changes) - allowed[operation]
@@ -280,6 +394,8 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
         "create_canvas": {"canvas"}, "delete_edges": set(), "query_connections": {"identifier", "node", "pin"},
         "query_edges": {"identifier", "view"}, "refresh_topology": set(),
         "saveProject": {"new_rid"}, "cancel_preview": set(),
+        "query_emt_jobs": set(), "configure_channel": {"component", "identifier", "job_index", "signal_type", "signal_arg"},
+        "delete_channel": {"channel", "identifier", "key", "label"},
         "read_result": {"result_id"},
     }
     for field in ("target", "changes", "options"):
@@ -288,15 +404,20 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
     unknown = set(request.target) - targets[request.operation]
     if unknown:
         raise ValueError(f"Unsupported target fields for {request.operation}: {sorted(unknown)}")
-    allowed_options = {"offset", "limit", "fields"} if request.operation in {"query", "query_connections", "query_edges"} else (
+    allowed_options = {"offset", "limit", "fields"} if request.operation == "query" else (
         {"reset", "offset", "limit"} if request.operation == "initialize" else (
         {"fields"} if request.operation == "get_template_schema" else (
-        {"offset", "limit"} if request.operation == "read_result" else set())))
+        {"offset", "limit"} if request.operation in {"read_result", "query_connections", "query_edges"} else set())))
     if set(request.options) - allowed_options:
         raise ValueError(f"Unsupported options for {request.operation}")
     if request.operation in {"query", "initialize", "list_templates", "get_template_schema", "query_connections", "query_edges",
                              "refresh_topology", "cancel_preview", "read_result"} and request.changes:
         raise ValueError(f"{request.operation} does not accept changes")
+    if request.operation == "query_emt_jobs":
+        return {"jobs": [{"job_index": i, "rid": _job_value(j, "rid"),
+                          "name": _job_value(j, "name"),
+                          "output_count": len(_job_args(j).get("output_channels") or [])}
+                         for i, j in _emt_jobs(_toolbox(session_state))]}
     if request.operation in {"list_templates", "get_template_schema"}:
         return _catalog(request, session_state)
     if request.operation == "read_result":
@@ -399,6 +520,9 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
     # Preserve the same revision object while replacing its diagram cells.
     sa.project.revision.implements.diagram.cells = target_cells
     sa.project.revision.implements.diagram.canvas[:] = staged.project.revision.implements.diagram.canvas
+    # Output registration is part of the same previewed edit as the cells.
+    if hasattr(staged.project, "jobs"):
+        sa.project.jobs = copy.deepcopy(staged.project.jobs)
     sa.pos, sa.compCount = staged.pos, staged.compCount
     sa.topo = None
     sa.setCompLabelDict()
