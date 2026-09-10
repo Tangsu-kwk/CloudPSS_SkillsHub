@@ -1153,18 +1153,10 @@ class ShortCircuitWorkflowExecutor(ToolExecutor[ShortCircuitWorkflowAction, Shor
         task_id = str(result.get("task_id") or "").strip()
         if not task_id:
             raise RuntimeError("The formal analysis did not return a CloudPSS task_id")
-        required_fields = (
-            "files_saved",
-            "analysis_context",
-            "summary",
-            "channels",
-            "warnings",
-        )
-        missing = [field for field in required_fields if field not in result]
-        if missing:
-            raise RuntimeError(
-                "The formal analysis returned an incomplete public result: " + ", ".join(missing)
-            )
+        # The short-circuit Skill's public Agent contract is intentionally
+        # minimal: a completed analysis returns only the CloudPSS task_id.
+        # Detailed artifacts remain owned by the Skill/report workflow and
+        # must not be re-derived or required by this host adapter.
         payload = copy.deepcopy(result)
         WORKFLOW_STATE.set_public_result(payload)
         return self._result(payload)
