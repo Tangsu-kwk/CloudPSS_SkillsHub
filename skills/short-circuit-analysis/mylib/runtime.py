@@ -739,6 +739,7 @@ def _validate_analysis_channel_prerequisites(
 ) -> None:
     """Require model-declared current channels unless equivalent mode is explicit."""
     declared_sources = snapshot.get("declared_current_sources", [])
+    candidates = snapshot.get("declared_current_source_candidates", [])
     equivalent_pairs = resolved_config.get("channels", {}).get("equivalent_pairs", [])
     if declared_sources or equivalent_pairs:
         return
@@ -749,9 +750,14 @@ def _validate_analysis_channel_prerequisites(
         for item in failures
         if isinstance(item, dict)
     )
+    if candidates:
+        raise RuntimeError(
+            "A model-declared current channel exists, but its unit metadata could not be verified. "
+            f"Fault bus {fault_bus!r}. {failure_text or 'Resolve the current unit metadata before retrying.'}"
+        )
     raise RuntimeError(
-        "No model-declared current channel has verified unit metadata. "
-        f"Fault bus {fault_bus!r}. {failure_text or 'Configure a fault or fault-bus current channel.'}"
+        "No model-declared current channel was found for the active fault or fault bus. "
+        f"Fault bus {fault_bus!r}. Configure a fault or fault-bus current channel."
     )
 
 
@@ -2123,9 +2129,9 @@ def run_short_circuit_analysis(
         declared_sources = list(resolved.get("declared_current_sources", []))
         if not declared_sources:
             raise RuntimeError(
-                "The active fault element and fault bus have no declared current channel. "
-                f"Fault bus {resolved['fault_bus']!r}: configure the CloudPSS fault-element "
-                "or fault-bus current channel before retrying the analysis."
+                "The active fault element or fault bus declares no usable current channel. "
+                f"Fault bus {resolved['fault_bus']!r}: configure a declared current channel "
+                "with verifiable unit metadata before retrying the analysis."
             )
         selected = _select_declared_current_traces(
             job.result,
