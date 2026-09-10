@@ -1,0 +1,102 @@
+{
+  "rid": "function/CloudPSS/emtps",
+  "retrieved": "2026-09-10",
+  "parameters": [
+    {
+      "columns": [
+        {
+          "description": "",
+          "key": "",
+          "name": "示波器分组名称",
+          "type": "text",
+          "value": ""
+        },
+        {
+          "description": "",
+          "key": "",
+          "minimum": 0,
+          "name": "采样频率",
+          "type": "real",
+          "unit": "Hz",
+          "value": 1000
+        },
+        {
+          "choices": [
+            {
+              "description": "",
+              "key": "compressed",
+              "name": "Compressed Time Axis Window"
+            },
+            {
+              "description": "",
+              "key": "global",
+              "name": "Global Time Axis Window"
+            },
+            {
+              "description": "",
+              "key": "moving",
+              "name": "Moving Time Axis Window"
+            },
+            {
+              "description": "",
+              "key": "oscilloscope",
+              "name": "Oscilloscope Type Window"
+            }
+          ],
+          "description": "",
+          "key": "",
+          "name": "窗口类型",
+          "type": "choice",
+          "value": "compressed"
+        },
+        {
+          "description": "",
+          "key": "",
+          "minimum": 0,
+          "name": "窗口宽度",
+          "type": "real",
+          "unit": "s",
+          "value": 0
+        },
+        {
+          "choices": {
+            "source": "($$.revision.implements.diagram.cells ?? ())::values()::filter_map(fn {\n    if it.definition == \"model/CloudPSS/_newChannel\" || it.definition == \"model/CloudPSS/XYChannel\" {\n        (key: it.id, name: if it.args.Name == '' { it.label } else { it.args.Name })\n    } else {\n        nil\n    }\n})\n",
+            "ɵexp": ""
+          },
+          "description": "",
+          "key": "",
+          "name": "示波器输出通道",
+          "type": "multiSelect",
+          "value": []
+        },
+        {
+          "choices": {
+            "source": "($$.revision.implements.diagram.cells ?? ())::values()::filter_map(fn {\n    if it.definition == \"model/CloudPSS/shapeCircle\" || it.definition == \"model/CloudPSS/shapeLine\" || it.definition == \"model/CloudPSS/shapePolygon\" {\n        (key: it.id, name: if it.args.Name == '' { it.label } else { it.args.Name })\n    } else {\n        nil\n    }\n})\n",
+            "ɵexp": ""
+          },
+          "description": "辅助图形",
+          "key": "",
+          "name": "辅助图形",
+          "type": "multiSelect",
+          "value": []
+        }
+      ],
+      "condition": "sim_option !~ 1",
+      "description": "",
+      "key": "output_channels",
+      "name": "输出通道",
+      "type": "table",
+      "value": [
+        {
+          "0": "",
+          "1": 1000,
+          "2": "compressed",
+          "3": 0,
+          "4": [],
+          "5": [],
+          "ɵid": 1735293995
+        }
+      ]
+    }
+  ]
+}
