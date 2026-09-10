@@ -18,7 +18,7 @@ from .sdk_adapter import json_value, validate_rid
 SUPPORTED_OPERATIONS = {"initialize", "list_templates", "get_template_schema", "query",
                         "create", "update", "delete", "create_canvas", "delete_edges",
                         "query_connections", "query_edges", "refresh_topology", "saveProject", "cancel_preview", "read_result"}
-SUPPORTED_OPERATIONS |= {"query_emt_jobs", "configure_channel", "delete_channel", "configure_channels_batch"}
+SUPPORTED_OPERATIONS |= {"query_emt_jobs", "query_emt_outputs", "configure_channel", "delete_channel", "configure_channels_batch"}
 CONFIRMATIONS = {"execute", "confirmed", "confirm", "确认执行", "确认"}
 PREVIEW_TTL = 1800
 OUTPUT_LIMIT = 12000
@@ -459,7 +459,7 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
         "create_canvas": {"canvas"}, "delete_edges": set(), "query_connections": {"identifier", "node", "pin"},
         "query_edges": {"identifier", "view"}, "refresh_topology": set(),
         "saveProject": {"new_rid"}, "cancel_preview": set(),
-        "query_emt_jobs": set(), "configure_channel": {"component", "identifier", "job_index", "signal_type", "signal_arg"},
+        "query_emt_jobs": set(), "query_emt_outputs": {"job_index"}, "configure_channel": {"component", "identifier", "job_index", "signal_type", "signal_arg"},
         "delete_channel": {"channel", "identifier", "key", "label"},
         "configure_channels_batch": {"job_index"},
         "read_result": {"result_id"},
@@ -484,6 +484,27 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
                           "name": _job_value(j, "name"),
                           "output_count": len(_job_args(j).get("output_channels") or [])}
                          for i, j in _emt_jobs(_toolbox(session_state))]}
+    if request.operation == "query_emt_outputs":
+        sa = _toolbox(session_state)
+        wanted = request.target.get("job_index")
+        jobs = [(i, j) for i, j in _emt_jobs(sa) if wanted is None or i == wanted]
+        if wanted is not None and not jobs:
+            raise ValueError("job_index does not identify an EMT/EMTPS job")
+        result = []
+        for i, job in jobs:
+            outputs = []
+            for ei, entry in enumerate(_job_args(job).get("output_channels") or []):
+                if not isinstance(entry, dict):
+                    outputs.append({"entry_index": ei, "raw": copy.deepcopy(entry)})
+                    continue
+                ids = entry.get("4", [])
+                outputs.append({"entry_index": ei, "name": entry.get("0"),
+                                "sample_rate": entry.get("1"), "compression": entry.get("2"),
+                                "enabled": entry.get("3"), "channel_ids": copy.deepcopy(ids),
+                                "raw": copy.deepcopy(entry)})
+            result.append({"job_index": i, "rid": _job_value(job, "rid"),
+                           "name": _job_value(job, "name"), "outputs": outputs})
+        return {"jobs": result}
     if request.operation in {"list_templates", "get_template_schema"}:
         return _catalog(request, session_state)
     if request.operation == "read_result":
