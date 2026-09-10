@@ -89,13 +89,31 @@ sa.setInitialConditions()
 - 刷新拓扑：`operation=refresh_topology`，直接返回结构检查结果，不保存模型。
 - 保存新副本：`operation=saveProject`；`target.new_rid` 必须是完整新 RID，名称和描述分别放在 `changes.name`、`changes.desc`。
 - EMT 输出通道：先调用 `query_emt_jobs` 列出可用 EMT/EMTPS 任务，由用户选择 `job_index`；再用 `configure_channel` 创建信号组件、建立 Pin 连接并将该通道加入所选任务的独立 `output_channels` 输出组。通道创建、元件信号参数修改和输出登记统一预览确认。
-- EMT 输出明细：使用只读入口 `query_emt_outputs`，可传 `target.job_index` 查询指定 EMT 任务，返回每个输出组的名称、采样率、压缩方式、启用标记和通道组件 ID；不修改模型、不保存、不启动仿真。
+- EMT 输出明细：使用只读入口 `query_emt_outputs`，可传 `target.job_index`，返回名称、采样频率、窗口类型 `window_type`、窗口宽度 `window_width_s` 和通道 ID。原始列 `"3"` 是窗口宽度（秒），不是启用开关；0 不表示禁用。`"2"` 是窗口类型，不是压缩率。
 - 删除输出通道：使用 `delete_channel`。它会清理目标通道在所有 EMT 输出组中的引用，删除清理后为空的输出组，并删除对应 `_newChannel` 组件；其他通道保留。
 - 批量输出通道：使用 `configure_channels_batch`，在同一 `job_index` 下提交 `changes.channels` 列表，一次预览、一次确认；执行结果逐项返回，允许部分成功并报告失败项。
 - 保存新 RID 后运行时会强制回读模型，并校验元件结构、配置、`jobs` 及 `output_channels`。
 - 取消预览：`operation=cancel_preview`，请求顶层提供 `preview_id`。
 - 重置会话：仅用户要求时使用 `operation=initialize`、`options.reset=true`，会丢弃未保存修改。
 - 高级故障/N-1方法未迁入，不调用不存在的方法。仿真和报告交给其他 Skill。
+
+### 输出通道请求示例
+
+单通道使用下列精确结构；用户只需说明元件、信号和所选 EMT 方案，由 Agent 填写字段：
+
+```json
+{"operation":"configure_channel","target":{"component":"<查询得到的组件 key>","job_index":1,"signal_type":"current","signal_arg":"I"},"changes":{"name":"#fault_current"}}
+```
+
+`signal_type` 和 `signal_arg` 位于 `target`；名称位于 `changes.name`，不要放进 `changes.channels`。后者仅用于批量：
+
+```json
+{"operation":"configure_channels_batch","target":{"job_index":1},"changes":{"channels":[{"component":"<组件 key>","signal_type":"current","signal_arg":"I","name":"#fault_current"}]}}
+```
+
+可选设置为 `sample_rate`（Hz）、`window_type`（compressed/global/moving/oscilloscope）、`window_width`（秒）及 `channel_key`。新输出组采用官方 EMTPS 默认值 1000 Hz、compressed、0 s，不复制其他输出组的历史异常值。旧输入 `compression` 仅为 `window_type` 别名。Dim/Freq 保留模板表达式结构；不能声称已复制指定实例或转成裸整数。创建会重设源元件相应信号字段；对同画布旧信号的已有记录通道同步重接 Pin，保留它们的显示名和输出组，预览中 `rebound_channels` 列出这些变更。存在其他元件同名参数引用时停止自动重接，要求明确共享关系。已有同名通道复用，不自动修复其历史输出组。
+
+未知字段报错后按此结构纠正一次，不反复猜字段或据此宣称能力不存在。上述字段依据见 [EMTPS 官方输出表定义](references/emt-output-schema.json)。
 
 ## 返回结果要求
 

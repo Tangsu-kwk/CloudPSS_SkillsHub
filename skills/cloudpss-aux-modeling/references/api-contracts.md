@@ -37,6 +37,11 @@
 | saveProject | new_rid（完整新 RID） | changes.name、desc 可选 | 独立预览后确认 |
 | cancel_preview | 无 | 请求顶层 preview_id | 无 |
 | read_result | result_id | options.offset、limit（最多4000字符） | 无 |
+| query_emt_jobs | 无 | 无 | 无 |
+| query_emt_outputs | 可选 job_index | 无；返回 window_type、window_width_s，不能将宽度解释为启用标记 | 无 |
+| configure_channel | component/identifier、job_index、signal_type、signal_arg | changes.name、channel_key、sample_rate、window_type、window_width；compression 为兼容别名 | 预览后确认 |
+| configure_channels_batch | job_index | changes.channels 列表；每项 component、signal_type、signal_arg 及单通道 changes 字段 | 一次预览后确认，允许部分成功 |
+| delete_channel | channel/identifier/key/label | 无 | 预览后确认 |
 
 query 和 get_template_schema 另支持 options.fields=[参数名,...]；inspect_model_from_context支持顶层fields，仅筛选单个元件的 args。未知字段报错。省略fields读取全部；超过12000字符返回 result_id/read_request，读取分页可完整恢复JSON，缓存保留30分钟、最多8份。完整日志和模型证据由宿主保存，不把全量内容重复发给用户。
 

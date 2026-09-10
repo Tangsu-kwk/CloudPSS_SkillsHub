@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import time
 import uuid
 from pathlib import Path
@@ -283,7 +284,33 @@ def _channel_job_rows(sa, channel_id=None):
     return rows
 
 
+WINDOW_TYPES = {"compressed", "global", "moving", "oscilloscope"}
+CHANNEL_CHANGES = {"name", "channel_key", "sample_rate", "window_type", "window_width", "compression"}
+
+
+def _channel_output_settings(changes):
+    # Official EMTPS output_channels columns: type (2), width in seconds (3).
+    # `compression` is retained as an input alias for existing callers only.
+    unknown = set(changes) - CHANNEL_CHANGES
+    if unknown:
+        raise ValueError(f"Unsupported changes for configure_channel: {sorted(unknown)}; use changes.name for a single channel, configure_channels_batch for changes.channels")
+    if "compression" in changes and "window_type" in changes and changes["compression"] != changes["window_type"]:
+        raise ValueError("compression alias conflicts with window_type")
+    kind = changes.get("window_type", changes.get("compression", "compressed"))
+    if kind not in WINDOW_TYPES:
+        raise ValueError(f"Invalid window_type: choose from {sorted(WINDOW_TYPES)}")
+    rate, width = changes.get("sample_rate", 1000), changes.get("window_width", 0)
+    for name, value in (("sample_rate", rate), ("window_width", width)):
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"{name} must be a finite nonnegative number")
+    for name in ("name", "channel_key"):
+        if name in changes and (not isinstance(changes[name], str) or not changes[name].strip()):
+            raise ValueError(f"{name} must be a nonempty string")
+    return rate, kind, width
+
+
 def _configure_channel(sa, request):
+    sample_rate, window_type, window_width = _channel_output_settings(request.changes)
     component = sa._resolve_comp_key(request.target.get("component") or _identifier(request))
     source = sa.getComponentByKey(component)
     signal_type = str(request.target.get("signal_type") or "current").lower()
@@ -301,6 +328,25 @@ def _configure_channel(sa, request):
         raise ValueError("Choose an EMT job with target.job_index")
     name = request.changes.get("name") or f"{component}_{signal_type}"
     channel_key = request.changes.get("channel_key") or f"{component}_{signal_type}_channel"
+    old_signal = _source_text(source.args.get(signal_arg))
+    rebound = []
+    if old_signal and old_signal != name:
+        # The signal label belongs to the source output, not to a recorder.
+        # Preserve existing recorders when renaming a uniquely driven signal.
+        peers = [k for k, c in sa.getAllComponents().items()
+                 if k != component and getattr(c, "definition", None) != "model/CloudPSS/_newChannel"
+                 and getattr(c, "canvas", None) == getattr(source, "canvas", None)
+                 and any(_source_text(v) == old_signal for v in getattr(c, "args", {}).values())]
+        readers = [(k, c) for k, c in sa.getAllComponents().items()
+                   if getattr(c, "definition", None) == "model/CloudPSS/_newChannel"
+                   and getattr(c, "canvas", None) == getattr(source, "canvas", None)
+                   and old_signal in getattr(c, "pins", {}).values()]
+        if peers and readers:
+            raise ValueError(f"Signal {old_signal!r} is shared with components {peers}; keep its name or explicitly resolve shared signal ownership before renaming")
+        for k, c in readers:
+            c.pins = {p: name if v == old_signal else v for p, v in c.pins.items()}
+            rebound.append({"key": k, "old_signal": old_signal, "new_signal": name,
+                            "display_name": _source_text(c.args.get("Name"))})
     # Reuse an existing channel when its signal name and target output type match.
     existing = [k for k, c in sa.getAllComponents().items()
                 if getattr(c, "definition", None) == "model/CloudPSS/_newChannel"
@@ -312,13 +358,14 @@ def _configure_channel(sa, request):
         outputs = _job_args(job).setdefault("output_channels", [])
         linked = [e for e in outputs if channel_key in (e.get("4", []) if isinstance(e, dict) else [])]
         if not linked:
-            entry = {"0": name, "1": request.changes.get("sample_rate", 1000),
-                     "2": request.changes.get("compression", "compressed"), "3": 1, "4": [channel_key]}
+            entry = {"0": name, "1": sample_rate,
+                     "2": window_type, "3": window_width, "4": [channel_key], "5": []}
             outputs.append(entry)
         else:
             entry = linked[0]
         return {"component": _summary(component, source), "channel": _summary(channel_key, sa.getComponentByKey(channel_key)),
-                "job_index": job_index, "output_channel": copy.deepcopy(entry), "reused": True}
+                "job_index": job_index, "output_channel": copy.deepcopy(entry), "reused": True,
+                "rebound_channels": rebound}
     if channel_key in sa.getAllComponents(): raise ValueError(f"Channel already exists: {channel_key}")
     channel_template = sa.compLib.get("_newChannel")
     if not channel_template: raise ValueError("_newChannel is missing from component library")
@@ -326,15 +373,11 @@ def _configure_channel(sa, request):
     sa.addComp(channel_template, channel_key, getattr(source, "canvas", None),
                getattr(source, "position", None), args={"Name": name}, pins={"0": name},
                label=name)
-    existing_outputs = _job_args(next(j for i,j in jobs if i == job_index)).get("output_channels") or []
-    base = existing_outputs[0] if existing_outputs and isinstance(existing_outputs[0], dict) else {}
-    sample_rate = request.changes.get("sample_rate", base.get("1", 1000))
-    compression = request.changes.get("compression", base.get("2", "compressed"))
     args = _job_args(next(j for i,j in jobs if i == job_index))
     outputs = args.setdefault("output_channels", [])
-    outputs.append({"0": name, "1": sample_rate, "2": compression, "3": 1, "4": [channel_key]})
+    outputs.append({"0": name, "1": sample_rate, "2": window_type, "3": window_width, "4": [channel_key], "5": []})
     return {"component": _summary(component, source), "channel": _summary(channel_key, sa.getComponentByKey(channel_key)),
-            "job_index": job_index, "output_channel": outputs[-1]}
+            "job_index": job_index, "output_channel": outputs[-1], "rebound_channels": rebound}
 
 
 def _delete_channel(sa, request):
@@ -358,6 +401,8 @@ def _delete_channel(sa, request):
 
 
 def _configure_channels_batch(sa, request):
+    if set(request.changes) - {"channels"}:
+        raise ValueError("configure_channels_batch only accepts changes.channels")
     items = request.changes.get("channels")
     if not isinstance(items, list) or not items:
         raise ValueError("changes.channels must be a nonempty list")
@@ -365,9 +410,12 @@ def _configure_channels_batch(sa, request):
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             failures.append({"index": index, "error": "channel item must be an object"}); continue
+        unknown = set(item) - (CHANNEL_CHANGES | {"component", "signal_type", "signal_arg"})
+        if unknown:
+            failures.append({"index": index, "error": f"Unsupported channel fields: {sorted(unknown)}"}); continue
         target = {"component": item.get("component"), "job_index": request.target.get("job_index"),
                   "signal_type": item.get("signal_type", "current"), "signal_arg": item.get("signal_arg")}
-        changes = {k: item[k] for k in ("name", "channel_key", "sample_rate", "compression") if k in item}
+        changes = {k: item[k] for k in CHANNEL_CHANGES if k in item}
         try:
             results.append({"index": index, **_configure_channel(sa, EditRequest("configure_channel", target, changes))})
         except Exception as exc:
@@ -499,8 +547,8 @@ def _edit_model(request: EditRequest | dict[str, Any], session_state: dict[str, 
                     continue
                 ids = entry.get("4", [])
                 outputs.append({"entry_index": ei, "name": entry.get("0"),
-                                "sample_rate": entry.get("1"), "compression": entry.get("2"),
-                                "enabled": entry.get("3"), "channel_ids": copy.deepcopy(ids),
+                                "sample_rate": entry.get("1"), "window_type": entry.get("2"),
+                                "window_width_s": entry.get("3"), "channel_ids": copy.deepcopy(ids),
                                 "raw": copy.deepcopy(entry)})
             result.append({"job_index": i, "rid": _job_value(job, "rid"),
                            "name": _job_value(job, "name"), "outputs": outputs})

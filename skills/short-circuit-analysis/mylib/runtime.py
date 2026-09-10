@@ -1204,6 +1204,7 @@ def analyze_model_from_source(
 
     stage = "model_loading"
     task_id: str | None = None
+    simulation_completed = False
     try:
         _configure_cloudpss_auth()
         model = load_model_from_source(source, fetch_timeout=fetch_timeout)
@@ -1230,6 +1231,7 @@ def analyze_model_from_source(
         _emit_stage(stage)
         stage = "emt_analysis"
         job = run_emt(model, timeout=timeout)
+        simulation_completed = True
         task_id = _task_id_from_job(job)
         result = run_short_circuit_analysis(
             model,
@@ -1314,6 +1316,7 @@ def analyze_model_from_source(
         _emit_stage("complete")
         return {"task_id": task_id}
     except Exception as exc:
+        task_id = task_id or getattr(exc, "emt_task_id", None)
         error = {
             "status": "failed",
             "source": source,
@@ -1326,10 +1329,23 @@ def analyze_model_from_source(
             error_dir = target_dir / _safe_path_part(task_id, "task")
             error_dir.mkdir(parents=True, exist_ok=True)
             error_path = error_dir / "analysis_error.json"
+            # Preserve result-name evidence without loading waveform samples into Agent context.
+            if simulation_completed:
+                try:
+                    error["available_channels"] = [
+                        {"plot_index": i, "channels": job.result.getPlotChannelNames(i)}
+                        for i, _ in enumerate(job.result.getPlots())
+                    ]
+                except Exception as diagnostic_error:
+                    error["channel_diagnostic_error"] = str(diagnostic_error)
         else:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
             error_path = target_dir / f"analysis_error_{timestamp}.json"
         _write_json(error_path, error)
+        exc.public_error = {"stage": stage, "error_type": type(exc).__name__,
+                            "message": str(exc), "simulation_completed": simulation_completed,
+                            "files_saved": False, "task_id": task_id,
+                            "error_file": str(error_path)}
         raise
 
 
@@ -1353,6 +1369,13 @@ def run_emt(model, *, timeout: int = 300):
         raise RuntimeError("EMT job failed")
     if job.result is None:
         raise RuntimeError("EMT result is empty")
+    logs = job.result.getMessagesByType("log") if hasattr(job.result, "getMessagesByType") else []
+    errors = [m.get("data", {}).get("content", "") for m in logs
+              if m.get("data", {}).get("level") in {"error", "fatal"}]
+    if errors:
+        exc = RuntimeError("EMT execution failed: " + "; ".join(errors)[:2000])
+        exc.emt_task_id = _task_id_from_job(job)
+        raise exc
     return job
 
 
