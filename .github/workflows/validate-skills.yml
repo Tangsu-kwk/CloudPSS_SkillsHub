@@ -1,11 +1,7 @@
 name: Skill CI
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-  push:
-    branches: [main]
+  # 暂停 PR/推送自动校验；修订校验器后可通过 Actions 手动运行。
   workflow_dispatch:
 
 permissions:
