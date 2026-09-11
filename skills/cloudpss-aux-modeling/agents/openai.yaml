@@ -1,0 +1,4 @@
+interface:
+  display_name: CloudPSS 辅助建模
+  short_description: CloudPSS 模型元件的新增、查询、修改与拓扑验证
+  default_prompt: 使用 CloudPSS 辅助建模能力完成元件操作；先查询真实组件，再修改并回读验证。

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
+import importlib
 import json
 import os
+import py_compile
 import sys
 import tempfile
 import types
@@ -16,16 +17,10 @@ RUNTIME_PATH = Path(__file__).resolve().parents[1] / "mylib" / "runtime.py"
 
 
 def load_runtime():
-    cloudpss = types.ModuleType("cloudpss")
-    cloudpss.Model = object
-    cloudpss.setToken = lambda _token: None
-    sys.modules.setdefault("cloudpss", cloudpss)
-    spec = importlib.util.spec_from_file_location("sca_runtime_contract", RUNTIME_PATH)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load runtime from {RUNTIME_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    skill_dir = RUNTIME_PATH.parents[1]
+    if str(skill_dir) not in sys.path:
+        sys.path.insert(0, str(skill_dir))
+    return importlib.import_module("mylib.runtime")
 
 
 class FailedEmtModel:
@@ -89,6 +84,43 @@ class SyntheticEmtModel:
             status=lambda: 1,
             result=SyntheticResult(),
         )
+
+
+class SyntheticComponent:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def toJSON(self):
+        return self.payload
+
+
+class FaultCandidateModel:
+    name = "FaultCandidateModel"
+    rid = "model/Synthetic/FaultCandidates"
+
+    def __init__(self, faults):
+        self.faults = faults
+        self.run_count = 0
+
+    def getAllComponents(self):
+        return {
+            fault["id"]: SyntheticComponent(
+                {
+                    "definition": "model/CloudPSS/_newFaultResistor_3p",
+                    "args": {
+                        "Name": fault["name"],
+                        "I": fault.get("current_channel"),
+                        "fs": fault.get("start_time_s", 2.0),
+                        "fe": fault.get("end_time_s", 2.1),
+                    },
+                }
+            )
+            for fault in self.faults
+        }
+
+    def runEMT(self):
+        self.run_count += 1
+        raise AssertionError("fault candidate inspection must not start EMT")
 
 
 def assert_raises(exc_type, callback, message: str) -> None:
@@ -191,6 +223,13 @@ def main() -> None:
     assert merged["analysis"]["base_voltage_kv"] == 525.0
     assert merged["analysis"]["requested_base_voltage_kv"] == 230.0
     assert merged["analysis"]["base_voltage_conflict"]["resolution"] == "model_value_used"
+    assert_raises(
+        ValueError,
+        lambda: runtime._merge_analysis_config(
+            {"analysis": {"current_scale": 1.0}}, snapshot
+        ),
+        "legacy current_scale must not bypass component-unit resolution",
+    )
 
     topology_model = {
         "revision": {
@@ -254,6 +293,13 @@ def main() -> None:
     )
     selected_fault = runtime._resolve_target_fault(multi_faults, "fault-b")
     assert selected_fault["id"] == "fault-b"
+    selected_fault_by_name = runtime._resolve_target_fault(multi_faults, "Bus5 fault")
+    assert selected_fault_by_name["id"] == "fault-a"
+    assert_raises(
+        ValueError,
+        lambda: runtime._resolve_target_fault(multi_faults, "missing-fault"),
+        "unknown target fault must fail",
+    )
     selected_sources = runtime._declared_current_channel_sources(
         multi_faults,
         {"bus_current_channel": "#Ibus8", "fault_bus_component_id": "bus-cell"},
@@ -303,6 +349,45 @@ def main() -> None:
     assert selected_resolution["value_kv"] == 525.0
     assert selected_resolution["bus_current_channel"] == "#Ibus8"
 
+    original_load = runtime.load_model_from_source
+    try:
+        candidate_models = {
+            "model/Synthetic/NoFault": FaultCandidateModel([]),
+            "model/Synthetic/OneFault": FaultCandidateModel(
+                [{"id": "fault-a", "name": "Bus5 fault", "current_channel": "#Ifault5"}]
+            ),
+            "model/Synthetic/TwoFaults": FaultCandidateModel(
+                [
+                    {"id": "fault-a", "name": "Bus5 fault", "current_channel": "#Ifault5"},
+                    {"id": "fault-b", "name": "Bus8 fault", "current_channel": "#Ifault8"},
+                ]
+            ),
+        }
+        runtime.load_model_from_source = lambda source, **_kwargs: candidate_models[source]
+
+        no_fault = runtime.inspect_fault_candidates_from_source("model/Synthetic/NoFault")
+        assert no_fault["fault_count"] == 0
+        assert no_fault["selection_required"] is False
+        assert no_fault["target_fault_id"] is None
+        assert no_fault["emt_started"] is False
+
+        one_fault = runtime.inspect_fault_candidates_from_source("model/Synthetic/OneFault")
+        assert one_fault["fault_count"] == 1
+        assert one_fault["selection_required"] is False
+        assert one_fault["target_fault_id"] == "fault-a"
+
+        two_faults = runtime.inspect_fault_candidates_from_source("model/Synthetic/TwoFaults")
+        assert two_faults["fault_count"] == 2
+        assert two_faults["selection_required"] is True
+        assert two_faults["target_fault_id"] is None
+        assert [(item["id"], item["name"]) for item in two_faults["faults"]] == [
+            ("fault-a", "Bus5 fault"),
+            ("fault-b", "Bus8 fault"),
+        ]
+        assert all(model.run_count == 0 for model in candidate_models.values())
+    finally:
+        runtime.load_model_from_source = original_load
+
     assert_raises(
         ValueError,
         lambda: runtime.analyze_model_from_source(""),
@@ -342,6 +427,23 @@ def main() -> None:
                     "base_voltage_source": "model.Bus_5_Vbase",
                     "fault_bus": "Bus5",
                     "fault_current_channel": "#Ifault_bus5",
+                    "declared_current_sources": [
+                        {
+                            "kind": "fault_element",
+                            "component_id": "fault-cell",
+                            "definition": "model/CloudPSS/_newFaultResistor_3p",
+                            "parameter_key": "I",
+                            "channel": "#Ifault_bus5",
+                            "current_unit": {
+                                "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+                                "parameter_key": "I",
+                                "raw_unit": "kA",
+                                "normalized_unit": "kA",
+                                "unit_source": "parameter.name",
+                                "unit_scale_to_ka": 1.0,
+                            },
+                        }
+                    ],
                     "analysis_window": [0.0, 10.0],
                     "prefault_window": [0.0, 2.0],
                     "fault_window": [2.0, 7.0],
@@ -438,6 +540,16 @@ def main() -> None:
                     "component_id": "fault-cell",
                     "channel": "#Ifault_bus5",
                     "source": "components.fault-cell.args.I",
+                    "definition": "model/CloudPSS/_newFaultResistor_3p",
+                    "parameter_key": "I",
+                    "current_unit": {
+                        "definition_rid": "model/CloudPSS/_newFaultResistor_3p",
+                        "parameter_key": "I",
+                        "raw_unit": "A",
+                        "normalized_unit": "kA",
+                        "unit_source": "parameter.unit",
+                        "unit_scale_to_ka": 0.001,
+                    },
                 }
             ],
         }
@@ -471,11 +583,15 @@ def main() -> None:
         assert files == ["synthetic-success-job"]
         task_dir = Path(output_dir, "synthetic-success-job")
         assert sorted(path.name for path in task_dir.iterdir()) == [
+            "analysis_code.py",
+            "analysis_report.md",
             "analysis_result.json",
             "model_parameters.json",
             "raw_waveforms",
+            "summary.csv",
             "task.json",
             "waveform.csv",
+            "waveform_summary.json",
         ]
         task = json.loads(
             Path(task_dir, "task.json").read_text(encoding="utf-8")
@@ -485,6 +601,10 @@ def main() -> None:
         assert task["model_parameters"] == "model_parameters.json"
         assert task["analysis_result"] == "analysis_result.json"
         assert task["waveform"] == "waveform.csv"
+        assert task["waveform_summary"] == "waveform_summary.json"
+        assert task["summary_csv"] == "summary.csv"
+        assert task["analysis_report"] == "analysis_report.md"
+        assert task["analysis_code"] == "analysis_code.py"
         assert task["raw_waveforms"] == "raw_waveforms"
 
         waveform_path = Path(task_dir, task["waveform"])
@@ -496,6 +616,7 @@ def main() -> None:
         raw_dir = Path(task_dir, task["raw_waveforms"])
         raw_files = sorted(raw_dir.glob("*.csv"))
         assert len(raw_files) == len(SyntheticResult().channels)
+        assert Path(raw_dir, "index.json").is_file()
         with Path(raw_dir, "vac_0.csv").open(newline="", encoding="utf-8") as csv_file:
             raw_voltage_rows = list(csv.reader(csv_file))
         assert raw_voltage_rows[0] == ["time", "vac:0"]
@@ -510,6 +631,9 @@ def main() -> None:
         assert analysis["waveform_files"]["raw"]["channel_count"] == len(
             SyntheticResult().channels
         )
+        assert analysis["channels"][0]["unit"]["raw_unit"] == "A"
+        assert analysis["channels"][0]["unit"]["effective_current_scale"] == 0.001
+        assert analysis["summary"]["max_fault_rms_current"] == 0.003
         model_parameters = json.loads(
             Path(task_dir, task["model_parameters"]).read_text(encoding="utf-8")
         )
@@ -521,10 +645,20 @@ def main() -> None:
         assert "runtime-contract-token" not in artifact_text
         assert "synthetic-login-token" not in artifact_text
         assert "synthetic-sdk-token" not in artifact_text
-        assert not list(task_dir.glob("*.md"))
-        assert not list(task_dir.glob("*.py"))
+        markdown = Path(task_dir, task["analysis_report"]).read_text(encoding="utf-8")
+        assert "短路电流分析报告" in markdown
+        assert "故障 RMS" in markdown
+        with Path(task_dir, task["summary_csv"]).open(newline="", encoding="utf-8-sig") as csv_file:
+            summary_rows = list(csv.DictReader(csv_file))
+        assert len(summary_rows) == 3
+        assert summary_rows[0]["raw_current_unit"] == "A"
+        analysis_code = Path(task_dir, task["analysis_code"]).read_text(encoding="utf-8")
+        assert "def analyze_model_from_source" in analysis_code
+        assert "def resolve_current_parameter_metadata" in analysis_code
+        assert "runtime-contract-token" not in analysis_code
+        py_compile.compile(str(Path(task_dir, task["analysis_code"])), doraise=True)
 
-    prompt_path = RUNTIME_PATH.parents[3] / "system-prompt.md"
+    prompt_path = RUNTIME_PATH.parents[3] / "new-system-prompt.md"
     if prompt_path.exists():
         prompt = prompt_path.read_text(encoding="utf-8")
         assert "RID" in prompt
