@@ -17,6 +17,10 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+class RequestTimeout(RuntimeError):
+    pass
+
+
 class SimBot:
     def __init__(self, base_url, token):
         url = urlparse(base_url)
@@ -39,7 +43,7 @@ class SimBot:
         except HTTPError as error:
             raise RuntimeError(f"{request.get_method()} {path}: HTTP {error.code}") from None
         except TimeoutError:
-            raise RuntimeError(f"{request.get_method()} {path} timed out; inspect the existing conversation before retrying") from None
+            raise RequestTimeout(f"{request.get_method()} {path} timed out") from None
 
     def conversation(self, cid):
         return self.request("/api/v1/app-conversations", query={"ids": cid})[0]
@@ -111,13 +115,29 @@ def run_turn(client, path, session_key, text, timeout, target):
     previous = client.events(path, session_key)
     previous_ids = {item["id"] for item in previous}
     start = previous[-1]["timestamp"] if previous else None
-    client.request(f"{path}/events", data={"content": [{"type": "text", "text": text}], "run": False},
-                   session_key=session_key)
-    if not client.request(f"{path}/run", data={}, session_key=session_key)["success"]:
-        raise RuntimeError("SimBot did not start the queued test turn")
+    content = [{"type": "text", "text": text}]
+
+    def new_events():
+        return [item for item in client.events(path, session_key, start) if item["id"] not in previous_ids]
+
+    def user_turns(events):
+        return [item for item in events if item["kind"] == "MessageEvent" and item.get("source") == "user"]
+
+    try:
+        client.request(f"{path}/events", data={"content": content, "run": False}, session_key=session_key)
+    except RequestTimeout:
+        queued = user_turns(new_events())
+        if len(queued) != 1 or not any(block.get("text") == text for block in queued[0]["llm_message"]["content"]):
+            raise RuntimeError("Message receipt could not be confirmed after a timeout") from None
+    try:
+        if not client.request(f"{path}/run", data={}, session_key=session_key)["success"]:
+            raise RuntimeError("SimBot did not start the queued test turn")
+    except RequestTimeout:
+        # The request can succeed even when the proxy drops the response.
+        pass
 
     def completed():
-        events = [item for item in client.events(path, session_key, start) if item["id"] not in previous_ids]
+        events = new_events()
         # System prompts, secret-bearing setup events, and model traces are not required here.
         records = [{key: item[key] for key in ("id", "timestamp", "kind", "source", "activated_skills") if key in item}
                    for item in events]
@@ -129,10 +149,10 @@ def run_turn(client, path, session_key, text, timeout, target):
         if state in {"error", "stuck", "paused", "waiting_for_confirmation", "deleting"}:
             raise RuntimeError(f"SimBot stopped in state {state}")
         messages = [item for item in events if item["kind"] == "MessageEvent" and item.get("source") == "agent"]
-        user_turns = [item for item in events if item["kind"] == "MessageEvent" and item.get("source") == "user"]
-        if len(user_turns) > 1:
+        turns = user_turns(events)
+        if len(turns) > 1:
             raise RuntimeError("Multiple user messages arrived during the test turn")
-        return messages[-1] if len(user_turns) == 1 and messages and state in {"idle", "finished"} else None
+        return messages[-1] if len(turns) == 1 and messages and state in {"idle", "finished"} else None
 
     return wait_for(completed, timeout)
 
