@@ -13,3 +13,9 @@ python -B scripts/simbot_regression.py --profile PROFILE_ID --commit FULL_SHA --
 使用 `--prompt docs/short-circuit/agent-prompt-candidate.md` 和新的证据目录运行候选提示词。默认请求从给定 SHA 加载 GitHub 插件。共享技能市场拉取失败时，可用 SimBot 的会话文件上传接口把 `git archive` 产物放到专用测试沙箱，将 `skills/` 的内容放到该工作区的 `.agents/skills/`，校验文件后传 `--sandbox-id`。对照测试沿用同一份 Skill 产物，每个提示词启动独立会话。
 
 脚本逐轮等待完成并检查 Skill 调用和指定文件。独立检查应使用回复、事件和结果文件。知识用例需要核对指标口径和执行范围。真实 EMT 用例需要核对任务 ID、运行方案、波形、窗口与复算值。遇到发送超时先查现有会话的事件和提交回执，避免重复消息或计算。
+
+取得结果目录后，用原始电流 CSV 独立核对全分析窗峰值、故障窗峰值和故障窗总 RMS。参数目录应包含 `submission.json` 和该任务 ID 的子目录。
+
+```text
+python -B scripts/verify_short_circuit_artifacts.py /path/to/results TASK_ID
+```

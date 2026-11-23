@@ -113,7 +113,8 @@ def run_turn(client, path, session_key, text, timeout, target):
     start = previous[-1]["timestamp"] if previous else None
     client.request(f"{path}/events", data={"content": [{"type": "text", "text": text}], "run": False},
                    session_key=session_key)
-    client.request(f"{path}/run", data={}, session_key=session_key)
+    if not client.request(f"{path}/run", data={}, session_key=session_key)["success"]:
+        raise RuntimeError("SimBot did not start the queued test turn")
 
     def completed():
         events = [item for item in client.events(path, session_key, start) if item["id"] not in previous_ids]
@@ -167,6 +168,8 @@ def main():
         record = json.loads(args.launch_record.read_bytes())
         if record["commit"] != args.commit:
             parser.error("Launch record commit differs from --commit")
+        if record.get("prompt_sha256") != hashlib.sha256(prompt.encode()).hexdigest():
+            parser.error("Launch record prompt differs from --prompt")
         cid = record["conversation_id"]
         path, session_key = client.sandbox(cid)
         if any(item.get("source") == "user" and item["kind"] == "MessageEvent"
