@@ -49,7 +49,7 @@ def number(value):
         return None
 
 
-def resolve(cells, target, topology=None):
+def resolve(cells, target, topology=None, *, allow_multiple_networks=False):
     fault_id = target.get('id') if target else None
     fault = cells.get(fault_id, {})
     buses = {k: v for k, v in cells.items() if isinstance(v, dict) and is_bus(v)}
@@ -63,7 +63,8 @@ def resolve(cells, target, topology=None):
     ground_nodes = {node(k, p) for k, c in cells.items()
                     if isinstance(c, dict) and str(c.get('definition', '')).lower().endswith('/gnd')
                     for p in (c.get('pins') or {})} - {None}
-    fault_nodes = {node(fault_id, p) for p in pins} - {None} if fault_id else set()
+    terminal_nodes = {p: node(fault_id, p) for p in pins} if fault_id and topology is not None else {}
+    fault_nodes = set(terminal_nodes.values()) - {None}
     fault_nodes -= ground_nodes
     top_candidates = {(k, p) for k, b in buses.items() for p in (b.get('pins') or {})
                       if node(k, p) in fault_nodes}
@@ -117,10 +118,17 @@ def resolve(cells, target, topology=None):
         networks = {('named', buses[k]['pins'][p]) for k, p in selected} if named else {
             ('edge', k) for k, _ in selected}
         basis = 'named_pin' if named else 'diagram_edge'
-    if len(networks) > 1:
+    multiple_networks = len(networks) > 1
+    if multiple_networks and not allow_multiple_networks:
         raise ValueError('Target fault connects to multiple bus networks; cannot choose a fault bus')
     ids = sorted({k for k, _ in selected})
     return {'component_ids': ids, 'connection_basis': basis if ids else None,
             'topology_nodes': sorted(n for n in networks if isinstance(n, str)),
             'edge_ids': sorted(visited), 'named_pin_candidates': sorted({k for k, _ in named}),
-            'diagram_edge_candidates': sorted({k for k, _ in edge_buses})}
+            'diagram_edge_candidates': sorted({k for k, _ in edge_buses}),
+            'multiple_networks': multiple_networks,
+            'terminal_connection': {
+                'terminal_nodes': terminal_nodes,
+                'grounded_terminals': [pin for pin, network in terminal_nodes.items() if network in ground_nodes],
+                'all_terminals_resolved': bool(terminal_nodes) and all(terminal_nodes.values()),
+            }}

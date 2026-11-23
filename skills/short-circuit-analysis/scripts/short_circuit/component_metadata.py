@@ -134,7 +134,7 @@ def resolve_current_parameter_metadata(
                 "expected parameter.unit or a supported [unit] in name/description"
             )
 
-    return {
+    metadata = {
         "definition_rid": str(component["rid"]),
         "component_name": component.get("name"),
         "parameter_key": str(parameter_key),
@@ -145,3 +145,9 @@ def resolve_current_parameter_metadata(
         "unit_source": unit_source,
         "unit_scale_to_ka": CURRENT_UNIT_SCALE_TO_KA[raw_unit],
     }
+    dimensions = parameter.get("dim")
+    if (parameter.get("type") == "pinLike" and parameter.get("connection") == "output"
+            and isinstance(dimensions, list) and len(dimensions) == 2
+            and str(dimensions[1]) == "1" and re.fullmatch(r"[1-9][0-9]*", str(dimensions[0]))):
+        metadata["signal_dimension"] = int(dimensions[0])
+    return metadata

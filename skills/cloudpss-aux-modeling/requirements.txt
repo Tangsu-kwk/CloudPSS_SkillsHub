@@ -1,1 +1,3 @@
-cloudpss>=5.0.6
+# Install assets/sdk/automodeling-0.1.0-py3-none-any.whl to install the required SDK dependencies.
+cloudpss==5.0.9
+mirascript==0.1.103

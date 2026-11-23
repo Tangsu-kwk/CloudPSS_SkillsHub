@@ -1,36 +1,22 @@
 {
   "skill_name": "cloudpss-aux-modeling",
-  "skill_version": "0.1",
+  "skill_version": "0.2-workspace-pilot",
   "verification_required": true,
-  "verification_method": "offline_runtime_contract_and_optional_real_cloudpss_model",
+  "verification_method": "offline_workspace_recovery",
   "evals": [
     {
       "id": 1,
-      "name": "真实模型查询",
-      "goal": "在用户提供的 CloudPSS 模型中按 label、key 或 RID 查询并返回 definition、args、pins、canvas",
-      "workflow": ["Model.fetch", "getAllComponents", "getComponentByKey"],
-      "pass_criteria": ["不输出 token", "标识解析唯一", "返回字段来自当前模型回读"]
+      "name": "跨进程恢复故障工作模型",
+      "goal": "先修改已有故障元件的参数，再在另一轮为指定 EMT 方案配置故障电流记录",
+      "workflow": ["open", "preview", "apply", "inspect", "preview", "apply", "export"],
+      "pass_criteria": ["每次从新进程读取工作区", "仅确认有效预览时发布模型", "导出的完整模型同时保留两轮修改", "既有图形边、无关方案和输入模型保持原值"]
     },
     {
       "id": 2,
-      "name": "组件新增和回读",
-      "goal": "从 Skill 自带组件库读取模板，在真实模型已有画布中新增组件并回读",
-      "workflow": ["load template", "add component in memory", "query read-back"],
-      "pass_criteria": ["新增 key 唯一", "definition 与模板一致", "args/pins/canvas 可回读", "不自动保存云端"]
-    },
-    {
-      "id": 3,
-      "name": "参数修改和连续迭代",
-      "goal": "在同一内存 revision 上连续修改参数，并保留待确认预览",
-      "workflow": ["preview", "confirm", "update args", "read back"],
-      "pass_criteria": ["未确认不修改", "确认后参数生效", "后续操作复用同一 memory_model"]
-    },
-    {
-      "id": 4,
-      "name": "拓扑刷新",
-      "goal": "结构变化后创建临时 revision 并调用 ModelTopology.fetch",
-      "workflow": ["ModelRevision.create", "ModelTopology.fetch", "topology summary"],
-      "pass_criteria": ["报告拓扑刷新阶段", "不把临时 revision hash 当保存后的模型 RID"]
+      "name": "核对记录器实际输入",
+      "goal": "当另一个测点的记录器与目标信号同名时，按画布及实际输入核对绑定",
+      "workflow": ["inspect", "preview", "apply", "inspect"],
+      "pass_criteria": ["跨画布同名不复用", "同画布同名但输入不符时拒绝", "已正确登记的记录器可复用且不增加重复输出"]
     }
   ]
 }
