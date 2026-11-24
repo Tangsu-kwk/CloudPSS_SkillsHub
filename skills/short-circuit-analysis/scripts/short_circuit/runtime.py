@@ -1139,6 +1139,15 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
     """Write the human-readable evidence report consumed by downstream tooling."""
     analysis = result_data.get("analysis", {})
     summary = result_data.get("summary", {})
+    windows = []
+    for label, key in (
+        ("全分析窗", "analysis_window"),
+        ("故障窗", "fault_window"),
+        ("故障子窗", "steady_fault_window"),
+    ):
+        bounds = analysis.get(key)
+        if bounds is not None:
+            windows.append(f"- {label} {bounds[0]:g}–{bounds[1]:g} s")
     lines = [
         "# 短路电流分析报告",
         "",
@@ -1153,14 +1162,15 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
         f"- 故障母线：`{analysis.get('fault_bus') or 'n/a'}`",
         f"- 基准线电压：{_markdown_value(analysis.get('base_voltage_kv'), 'kV')}",
         "- 分析电流统一单位：`kA`",
+        *windows,
         "",
         "## 汇总结论",
         "",
         f"- 分析通道数量：{summary.get('channel_count', 0)}",
         f"- 全分析窗最大采样峰值：{_markdown_value(summary.get('max_peak_current'), 'kA')}",
         f"- 故障窗最大采样峰值：{_markdown_value(summary.get('max_fault_peak_current'), 'kA')}",
-        f"- 最大故障 RMS 电流：{_markdown_value(summary.get('max_fault_rms_current'), 'kA')}",
-        f"- 最大故障子窗 RMS 电流：{_markdown_value(summary.get('max_steady_fault_rms_current'), 'kA')}",
+        f"- 最大故障窗总 RMS：{_markdown_value(summary.get('max_fault_rms_current'), 'kA')}",
+        f"- 最大故障子窗总 RMS：{_markdown_value(summary.get('max_steady_fault_rms_current'), 'kA')}",
         f"- 最大三相近似短路容量：{_markdown_value(summary.get('max_short_circuit_mva'), 'MVA')}",
         f"- 最小 SCR：{_markdown_value(summary.get('min_scr'))}",
         f"- 最小 ESCR：{_markdown_value(summary.get('min_escr'))}",
@@ -1168,13 +1178,18 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
         "",
         "## 通道指标",
         "",
-        "| 通道 | 原始单位 | 单位依据 | 全窗峰值 (kA) | 故障窗峰值 (kA) | 故障 RMS (kA) | 子窗 RMS (kA) | 三相近似容量 (MVA) | SCR | ESCR |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| 通道 | 原始单位 | 单位依据 | 全分析窗采样峰值 (kA) | 故障窗采样峰值 (kA) | 故障窗总 RMS (kA) | 故障子窗总 RMS (kA) | 三相近似容量 (MVA) | SCR | ESCR | 测点或估算输入 | 换算至 kA 的系数 |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |",
     ]
     for channel in result_data.get("channels", []):
         metrics = channel.get("analysis", {})
         unit = channel.get("unit", {})
         thevenin = metrics.get("thevenin", {})
+        source = channel.get("source") or {}
+        inputs = channel.get("source_channels") or {}
+        measurement = source.get("source")
+        if inputs:
+            measurement = f"功率/电压估算，输入 {inputs.get('power')}、{inputs.get('voltage')}"
         cells = [
             channel.get("channel"),
             unit.get("raw_unit"),
@@ -1186,6 +1201,8 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
             metrics.get("short_circuit_mva"),
             thevenin.get("scr"),
             thevenin.get("escr"),
+            measurement,
+            unit.get("effective_current_scale"),
         ]
         lines.append("| " + " | ".join(_markdown_value(value) for value in cells) + " |")
     lines.extend(
@@ -1198,12 +1215,24 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
             "",
             "## 方法与限制",
             "",
-            "- 真实电流通道的原始单位由其 CloudPSS 元件定义参数元数据确认，并在计算前换算为 kA。",
+            "- 直接电流通道的原始单位来自 CloudPSS 元件定义。表中换算系数包含明确指定的额外校准（如有）。",
             "- `waveform.csv` 保存参与分析的标准化电流；`raw_waveforms/` 保存 CloudPSS 原始数值。",
+            "- 全分析窗和故障窗采样峰值分别取各窗内样点的最大绝对值。故障窗总 RMS 为窗内样点平方均值的平方根，包含直流分量的贡献。子窗总 RMS 使用相同算法。",
             "- 短路容量采用三相近似 `Ssc = √3 × Vll(kV) × I(kA)`。",
             "- 单相、两相及单支路事件按实际采样通道分析。接地形式以端点拓扑为依据，通道相序需要独立量测证据。",
             "- SCR/ESCR 与戴维南等值属于工程初筛，不替代设备校核级短路计算和并网专题研究。",
-            "- 完整逐点波形不写入本报告，避免把大量时序数据加载到智能体上下文。",
+            "",
+            "## 国标指标口径",
+            "",
+            "GB/T 15544.1-2023 第 1 章适用于额定 50 Hz 三相交流系统的平衡和不平衡短路。实际应用还须核对接地方式等条件，例如中性点不接地或谐振接地系统的一处单相接地故障超出该章范围。",
+            "",
+            "| 国标计算量 | 取值口径 | 本报告 |",
+            "| --- | --- | --- |",
+            "| 对称短路电流初始值 I″k（3.5、第 7 章） | 短路初始状态下预期电流的对称交流分量有效值。 | 需另行计算 |",
+            "| 短路电流峰值 iₚ（3.8、第 8 章） | 预期短路电流的最大可能瞬时值。 | 需另行计算 |",
+            "| 对称开断电流 I_b（3.9、第 9 章） | 开关第一对触头分断瞬间对应一个周期内的对称交流分量有效值。 | 需另行计算 |",
+            "",
+            "[GB/T 15544.1-2023 官方条目](https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=D86399BB0989F89A79B6CACBB666DA09)",
             "",
         ]
     )
