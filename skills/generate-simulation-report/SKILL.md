@@ -10,7 +10,7 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 ## 角色定位
 
 你是 SimBot 调用链中的报告生成执行器。你接收的是 SimBot 传入的用户上下文、CloudPSS 结果 RID、访问 Token、本地文件和输出要求，不承担平台调度、账号管理或其他系统级职责。
-你的职责是将远端结果导出到当前用户工作区，并把本地证据整理成可交付的 HTML 报告。
+你的职责是把本地证据整理成可交付的 HTML 报告，并按需将远端结果导出到当前用户工作区。
 
 ## 职责边界
 
@@ -19,12 +19,12 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 - **Node 脚本**：检查构建环境、按交付模式装配 Plotly、执行交付质检。
 - **浏览器**：在新标签页中展示最终 HTML，并验证页面是否实际渲染图表，不覆盖现有标签页。
 
-用户上下文决定目的、读者、范围、语言、风格和输出位置。可读主报告（尤其是 Markdown）优先提供面向读者的事实、名称、结论与分析范围；JSON 补充配置和溯源，结果 CSV 补充详细表格，原始时序数据用于图表和数据观察。冲突影响展示含义时，以主报告为展示基准并记录来源说明。
+用户上下文决定目的、读者、范围、语言、风格和输出位置。主报告提供面向读者的事实、术语和语境。已有短路分析时，指标与取窗以同一任务的结构化分析产物为准。其他报告按[数据来源与优先级](references/data-sources.md)处理。
 
-## 必填输入
+## 输入
 
-- `result_rid`：必填。仿真运行结果的 ID，从当前会话上下文中获取；缺失时向用户索取。
-- `token`：必填。执行 CloudPSS 仿真结果导出脚本前，由 Agent 在命令中显式引用 `CLOUDPSS_LOGIN_TOKEN` 和 `CLOUDPSS_TOKEN`，让 SimBot 的 CUSTOM_SECRETS 机制自动注入可用凭据；优先使用 `CLOUDPSS_LOGIN_TOKEN`，为空时使用 `CLOUDPSS_TOKEN`，取得第一个非空值后作为 `--token` 参数传入脚本。脚本不读取环境变量，也不接受默认 Token。若两个候选变量均为空，停止导出并提示用户：“当前运行环境缺少 CloudPSS Token，无法导出仿真结果。”不得要求用户在普通对话中明文发送 Token，不得输出或保存 Token。
+- 已有本地分析产物时，从用户提供的路径、交接或会话工作区取得同一任务的文件。任务 ID 可从分析产物取得。
+- 需要向 CloudPSS 导出时，使用 `result_rid` 和宿主提供的 Token。按[导出契约](references/data-sources.md#cloudpss-结果导出)传入凭据。
 
 ## 任务规划
 
@@ -45,19 +45,13 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 ## 工作流
 
 1. 读取 SimBot 传入的用户上下文，识别分析目标、读者、语言、风格、重点和输出路径。
-2. 从当前会话上下文取得 `result_rid`。任一必填输入缺失时停止执行并按“必填输入”要求向用户索取或提示配置；不得假设 Token 已存在。
-3. 在导出命令中显式引用 `CLOUDPSS_LOGIN_TOKEN` 和 `CLOUDPSS_TOKEN`，优先取 `CLOUDPSS_LOGIN_TOKEN`，为空时取 `CLOUDPSS_TOKEN`，并作为 `--token` 参数传给脚本；若均为空，则停止导出并提示缺少 CloudPSS Token，无法导出仿真结果。
-4. 在当前用户工作区运行 `python <skill目录>/scripts/export-simulation-result.py --result-rid <RID> --token <TOKEN>`，将已发现的 Token 作为启动参数传入。不得把 Token 写入脚本、结果文件、报告、日志或最终回复。保持命令工作目录为当前用户工作区，不得切换到 Skill 目录执行。
-5. 读取 `<当前工作区>/simulation-results/<RID>/manifest.json`，按其中的相对路径读取结果文件。脚本会根据远端结果对象自动识别 `powerflow` 或 `emt`，不要求模型 RID 或仿真类型。导出失败、结果流不可用或结果类型不支持时停止报告生成并说明原因。
-6. 盘点本地文件，分类为主报告、结构化结果、结果表、原始时序、模型/配置和无关文件；阅读 `references/data-sources.md` 建立来源映射。
-7. 提取事实、指标、单位、时间范围、通道和溯源信息。发现时序 CSV 时先读取 `references/waveform-csv-contract.md`，只使用表头、少量样本和统计摘要完成识别。
-8. 阅读 `references/report-assembly.md`、`references/visualization-and-writing.md`，依据实际证据动态组织阅读顺序、图表、表格和论文式分析文字。
-9. 运行 `node scripts/check-environment.js`。环境未通过时停止构建。
-10. 生成 `.report-build/report.source.html` 作为中间源文件：内嵌正文、样式、图表容器和唯一的 `report-chart-specs` JSON 数据清单；仅保留一个 `<!-- REPORT_PLOTLY -->` 标记。每个 `[data-plotly-chart]` 容器必须具有唯一 `id`，并与 JSON 中的图表 `id` 一一对应。不得写入 Plotly 库、Plotly `<script src>`、`Plotly.newPlot`、`Plotly.react` 或任何可执行业务脚本；构建器会注入固定图表渲染器。
-11. 默认使用 CDN 轻量模式构建：`node scripts/build-report.js --mode cdn .report-build/report.source.html report.html`。仅当用户明确要求断网可用时，使用 `--mode offline`。
-12. 运行 `node scripts/check-report.js --mode <cdn|offline> report.html`。质检失败时，报告状态为**未交付**；修复源文件后重新构建和质检。
-13. 如果修改了构建、质检或资源装配脚本，运行 `node tests/run-regression.js`。`tests/fixtures` 是通用的正常与故障输入，用于防止构建规则退化；它们不参与用户报告生成，也不随报告交付。
-14. 启动本地 HTTP 服务器提供 `report.html` 所在目录，并在浏览器中新开标签页打开最终 HTML 完成实渲染验收；不得直接覆盖已有标签页。确认正文、图表、交互和控制台无错误。没有完成这一步，不得宣称交付完成。
+2. 按[数据来源与优先级](references/data-sources.md)先盘点本地证据。已有同一短路任务的分析结果时，先运行该参考中的证据读取入口，沿用原指标、测点和取窗。只有任务 ID 时，按该参考导出已有结果，注明本次导出数据的统计口径。
+3. 读取 `references/waveform-csv-contract.md`、`references/report-assembly.md` 和 `references/visualization-and-writing.md` 中相关说明。以本任务的接线、通道、波形和指标组织正文。更换任务时，重新从该任务的证据提取结论。
+4. 运行 `node scripts/check-environment.js` 检查构建环境。
+5. 生成 `.report-build/report.source.html`，包含正文、样式、图表容器、唯一的 `report-chart-specs` JSON 清单和一个 `<!-- REPORT_PLOTLY -->` 标记。图表容器 ID 与清单一一对应，渲染器由构建器注入。
+6. 用 `node scripts/build-report.js --mode cdn .report-build/report.source.html report.html` 构建。用户要求离线时用 `--mode offline`。
+7. 运行 `node scripts/check-report.js --mode <cdn|offline> report.html`。已有短路分析的中文或英文报告按[短路分析产物交接](references/data-sources.md#短路分析产物交接)验证原指标表，再核对正文结论和图表与该任务证据一致。
+8. 用本地 HTTP 服务在浏览器新标签页打开最终 HTML，确认正文、图表和交互正常。按静态检查和实际渲染结果报告交付状态。
 
 ## 产物边界
 
