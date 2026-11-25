@@ -1,0 +1,5 @@
+interface:
+  display_name: "识图建模"
+  short_description: "根据电力系统图片与参数表使用独立 SDK 建模，并做潮流或电磁暂态验证；也可按 jobId 读结果与指标、指定方案运行或批量工况"
+  default_prompt: "使用 $cloudpss-diagram-modeling，根据我提供的图片与参数表从空白创建 CloudPSS 模型，排查建模问题，并按模型能力完成潮流或电磁暂态的计算与结果核对；需要时按 jobId 读取已有仿真结果，或按指定计算方案、参数方案提交单次运行与批量工况。"
+

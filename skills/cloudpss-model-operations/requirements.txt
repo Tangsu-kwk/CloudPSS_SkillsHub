@@ -1,0 +1,6 @@
+# 运行时依赖；已验证组合另见 assets/sdk/requirements-tested.txt
+cloudpss==5.0.10
+mirascript==0.1.103
+py-ubjson==0.16.1
+websocket-client==1.9.0
+PyYAML==6.0.3
