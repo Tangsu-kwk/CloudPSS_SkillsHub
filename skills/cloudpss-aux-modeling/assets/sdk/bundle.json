@@ -1,0 +1,11 @@
+{
+  "wheel": "automodeling-0.1.0-py3-none-any.whl",
+  "sha256": "646358ce13196fb09c102225535b2bf427f4080c4895a39beb73450ec8c81956",
+  "distribution": "automodeling",
+  "version": "0.1.0",
+  "import": "auto_modeling",
+  "official_sdk": "cloudpss==5.0.9",
+  "mirascript": "0.1.103",
+  "python_tested": "3.12.13",
+  "source": "cloudpss-sdk-modeling-extension-v1"
+}

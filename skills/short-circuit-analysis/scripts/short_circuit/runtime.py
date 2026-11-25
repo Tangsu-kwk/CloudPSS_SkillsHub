@@ -21,6 +21,7 @@ from .connection_resolution import current_topology, resolve as resolve_connecti
 DEFAULT_MODEL_RID = "model/CloudPSS/IEEE3"
 DEFAULT_MODEL_FETCH_TIMEOUT = 120.0
 DEFAULT_RESULTS_DIR = Path("results") / "short_circuit_analysis_result"
+EMT_FUNCTIONS = {"function/CloudPSS/emtp", "function/CloudPSS/emtps"}
 
 
 def _default_output_dir() -> Path:
@@ -93,6 +94,43 @@ def load_model_from_source(
         return Model.load(str(candidate))
     # The SDK otherwise waits indefinitely on a stalled GraphQL request.
     return Model.fetch(source, timeout=(10.0, float(fetch_timeout)))
+
+
+def load_prepared_workspace(handoff: str | Path):
+    """Load the exact exported document and recheck the selected EMT binding."""
+    record = json.loads(Path(handoff).read_bytes())
+    model_path = Path(record["model_document"])
+    raw = model_path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != record["sha256"]:
+        raise ValueError("Workspace document no longer matches the export digest")
+    doc = json.loads(raw)
+    if doc.get("rid") != record["source_rid"] or doc["revision"].get("hash") != record["baseline_revision"]:
+        raise ValueError("Workspace source identity no longer matches")
+    binding = record["binding"]
+    ji, ci = binding["job_index"], binding["config_index"]
+    if type(ji) is not int or not 0 <= ji < len(doc["jobs"]):
+        raise ValueError("Invalid EMT scheme index")
+    if type(ci) is not int or not 0 <= ci < len(doc["configs"]):
+        raise ValueError("Invalid parameter scheme index")
+    job = doc["jobs"][ji]
+    if (job["rid"] not in {"function/CloudPSS/emtp", "function/CloudPSS/emtps"}
+            or (job["rid"], job["name"], doc["configs"][ci]["name"])
+            != (binding["job_rid"], binding["job_name"], binding["config_name"])):
+        raise ValueError("Workspace EMT or parameter scheme identity differs")
+    cells = doc["revision"]["implements"]["diagram"]["cells"]
+    source, recorder = cells[binding["component"]], cells[binding["recorder"]]
+    recorder_name = _source_text(recorder["args"].get("Name"))
+    registrations = [row for row in job["args"]["output_channels"] if binding["recorder"] in row["4"]]
+    if (source["args"].get(binding["signal_arg"]) != binding["signal"]
+            or recorder["definition"] != "model/CloudPSS/_newChannel"
+            or recorder["canvas"] != source["canvas"]
+            or recorder["pins"].get("0") != binding["signal"]
+            or recorder_name != binding["signal"]
+            or _number(recorder["args"].get("Dim")) != binding["dimension"]
+            or registrations != [binding["output_row"]]):
+        raise ValueError("Workspace current signal, recorder or EMT output registration differs")
+    record["model_document"] = str(model_path)
+    return Model(doc), record
 
 
 def _json_safe(value: Any) -> Any:
@@ -180,6 +218,12 @@ def _diagram_variables(model_json: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+THREE_PHASE_FAULT_RESISTOR = "model/CloudPSS/_newFaultResistor_3p"
+PHASE_CHOICES = {"0": "", "1": "A", "2": "B", "3": "AB", "4": "C", "5": "AC", "6": "BC", "7": "ABC"}
+FAULT_TYPES = {1: "single_phase_fault", 2: "two_phase_fault", 3: "three_phase_fault"}
+CURRENT_ONLY_FAULTS = {"single_phase_fault", "two_phase_fault", "single_branch_event"}
+
+
 def _fault_context(component_json: dict[str, Any]) -> dict[str, Any]:
     faults: list[dict[str, Any]] = []
     for component_id, component in component_json.items():
@@ -190,8 +234,16 @@ def _fault_context(component_json: dict[str, Any]) -> dict[str, Any]:
             continue
         args = component.get("args") if isinstance(component.get("args"), dict) else {}
         props = component.get("props") if isinstance(component.get("props"), dict) else {}
-        if props.get("enabled") is False:
+        enabled = props.get("enabled")
+        if enabled is False:
             continue
+        code = (_source_text(args["ft"]) if "ft" in args else "0") if definition == THREE_PHASE_FAULT_RESISTOR else None
+        phases = PHASE_CHOICES.get(code)
+        if phases == "":
+            continue
+        fault_type = (FAULT_TYPES[len(phases)] if phases else
+                      "single_branch_event" if definition == "model/CloudPSS/_newFaultResistor" else
+                      "unresolved_fault_type")
         name = args.get("Name") or component.get("label") or component_id
         current_channel = _source_text(args.get("I"))
         voltage_channel = _source_text(args.get("V"))
@@ -205,7 +257,10 @@ def _fault_context(component_json: dict[str, Any]) -> dict[str, Any]:
                 "start_time_s": _source_number(args.get("fs")),
                 # CloudPSS uses `fe` for fault end time; `ft` is the fault type code.
                 "end_time_s": _source_number(args.get("fe")),
-                "fault_type": "three_phase_fault" if "_3p" in definition else "fault",
+                "fault_type": fault_type,
+                "fault_type_code": code,
+                "fault_phases": list(phases or ""),
+                "component_enabled_verified": enabled is None or enabled is True,
             }
         )
     return {"count": len(faults), "active": faults}
@@ -272,11 +327,17 @@ def inspect_fault_candidates_from_source(
             "start_time_s": fault.get("start_time_s"),
             "end_time_s": fault.get("end_time_s"),
             "fault_type": fault.get("fault_type"),
+            "fault_type_code": fault.get("fault_type_code"),
+            "fault_phases": fault.get("fault_phases", []),
+            "component_enabled_verified": fault.get("component_enabled_verified"),
         }
         for fault in _fault_context(component_json).get("active", [])
         if isinstance(fault, dict)
     ]
     selected = active_faults[0] if len(active_faults) == 1 else None
+    if selected and (selected["fault_type"] in {"single_branch_event", "unresolved_fault_type"}
+                     or not selected["component_enabled_verified"]):
+        selected = None
     return {
         "model": {
             "name": getattr(model, "name", ""),
@@ -284,8 +345,14 @@ def inspect_fault_candidates_from_source(
         },
         "fault_count": len(active_faults),
         "faults": active_faults,
-        "selection_required": len(active_faults) > 1,
+        "selection_required": bool(active_faults) and selected is None,
         "target_fault_id": selected.get("id") if selected else None,
+        "emt_schemes": [{"index": i, "name": job.get("name"), "rid": job["rid"]}
+                        for i, job in enumerate(getattr(model, "jobs", [])) if job["rid"] in EMT_FUNCTIONS],
+        "parameter_schemes": [{"index": i, "name": config.get("name")}
+                              for i, config in enumerate(getattr(model, "configs", []))],
+        "current_job_index": getattr(model, "context", {}).get("currentJob"),
+        "current_config_index": getattr(model, "context", {}).get("currentConfig"),
         "emt_started": False,
     }
 
@@ -405,7 +472,8 @@ def _resolve_base_voltage(
 ) -> dict[str, Any]:
     target_fault = target_fault or _resolve_target_fault(faults)
     cells = {**_diagram_cells(model_json), **component_json}
-    connection = resolve_connections(cells, target_fault, topology)
+    current_only = bool(target_fault and target_fault.get("fault_type") in CURRENT_ONLY_FAULTS)
+    connection = resolve_connections(cells, target_fault, topology, allow_multiple_networks=current_only)
     ids = connection["component_ids"]
     variables = _diagram_variables(model_json)
     candidates = []
@@ -426,16 +494,20 @@ def _resolve_base_voltage(
             value = voltage_number(variables.get(variable))
             if value is not None:
                 path = f"revision.implements.diagram.variables.{variable}"
-        if value is None:
+        if value is None and not current_only:
             raise ValueError(f"Connected fault bus {key} has no valid resolved VBase")
-        candidates.append({"component_id": key, "path": path, "value_kv": value})
-    if candidates and any(not math.isclose(c["value_kv"], candidates[0]["value_kv"], rel_tol=1e-9)
+        if value is not None:
+            candidates.append({"component_id": key, "path": path, "value_kv": value})
+    if not current_only and candidates and any(not math.isclose(c["value_kv"], candidates[0]["value_kv"], rel_tol=1e-9)
                           for c in candidates[1:]):
         raise ValueError("Connected fault buses declare conflicting VBase values")
-    chosen = candidates[0] if candidates else None
+    voltage_consistent = len(candidates) == len(ids) and all(
+        math.isclose(c["value_kv"], candidates[0]["value_kv"], rel_tol=1e-9) for c in candidates
+    )
+    chosen = candidates[0] if candidates and not connection["multiple_networks"] and voltage_consistent else None
     # A representative ID preserves the legacy shape. All equivalent buses
     # and parameter evidence are also retained; no channel is chosen by order.
-    key = ids[0] if ids else None
+    key = ids[0] if ids and not connection["multiple_networks"] else None
     bus = cells.get(key, {})
     return {
         "value_kv": chosen["value_kv"] if chosen else None,
@@ -543,12 +615,31 @@ def inspect_model(
     }
     revision = model_json.get("revision", {}) if isinstance(model_json, dict) else {}
     faults = _fault_context(component_json)
+    if target_fault_id is None and len(faults["active"]) == 1 and (
+        faults["active"][0]["fault_type"] == "single_branch_event"
+    ):
+        raise ValueError("Specify the branch event explicitly; confirm whether it is a short circuit or a load change")
     target_fault = _resolve_target_fault(faults, target_fault_id)
+    if target_fault and (target_fault["fault_type"] == "unresolved_fault_type"
+                         or not target_fault["component_enabled_verified"]):
+        raise ValueError(f"Resolve the fault type and enabled state of {target_fault['id']} before EMT analysis")
     topology, topology_evidence = current_topology(model) if target_fault else (None, None)
     voltage_resolution = _resolve_base_voltage(
         model_json, component_json, faults, target_fault, topology=topology
     )
     voltage_resolution["topology_evidence"] = topology_evidence
+    if target_fault:
+        terminal_connection = voltage_resolution["connection"]["terminal_connection"]
+        if target_fault["fault_type"] in CURRENT_ONLY_FAULTS and (
+            not terminal_connection["all_terminals_resolved"]
+            or len(set(terminal_connection["terminal_nodes"].values())) != 2
+        ):
+            raise ValueError(f"Resolve both distinct electrical terminals of {target_fault['id']} before EMT analysis")
+        target_fault["terminal_connection"] = terminal_connection
+        if target_fault["fault_type"] in {"single_phase_fault", "two_phase_fault"}:
+            target_fault["fault_connection_type"] = (
+                "phase_to_ground" if target_fault["fault_type"] == "single_phase_fault" else "two_phases_to_ground"
+            ) if terminal_connection["grounded_terminals"] else "ground_not_verified"
     declared_current_sources = _declared_current_channel_sources(
         faults, voltage_resolution, target_fault
     )
@@ -597,20 +688,19 @@ def inspect_model(
 def _default_analysis_config(snapshot: dict[str, Any]) -> dict[str, Any]:
     resolution = snapshot.get("voltage_resolution", {})
     base_voltage = resolution.get("value_kv")
-    if base_voltage is None and resolution.get("ambiguous"):
+    target_fault = snapshot.get("target_fault") or _resolve_target_fault(snapshot.get("faults", {})) or {}
+    current_only = target_fault.get("fault_type") in CURRENT_ONLY_FAULTS
+    if not current_only and base_voltage is None and resolution.get("ambiguous"):
         raise ValueError(
             "The model has multiple possible base voltages and none is tied to the active fault; "
             "resolve the actual connected fault bus before analysis."
         )
-    if base_voltage is None:
+    if not current_only and base_voltage is None:
         raise ValueError(
             "No model-derived base voltage is available for the active fault; "
             "the active fault bus must expose VBase."
         )
     simulation_window = _simulation_window(snapshot)
-    target_fault = snapshot.get("target_fault") or _resolve_target_fault(
-        snapshot.get("faults", {})
-    ) or {}
     fault_window = _active_fault_window(snapshot, target_fault)
     if fault_window is None:
         raise ValueError(
@@ -629,6 +719,10 @@ def _default_analysis_config(snapshot: dict[str, Any]) -> dict[str, Any]:
         "fault_bus": resolution.get("fault_bus"),
         "target_fault_id": target_fault.get("id"),
         "fault_type": active_fault.get("fault_type") if active_fault else None,
+        "fault_type_code": target_fault.get("fault_type_code"),
+        "fault_phases": target_fault.get("fault_phases", []),
+        "fault_connection_type": target_fault.get("fault_connection_type"),
+        "terminal_connection": target_fault.get("terminal_connection"),
         "declared_current_sources": snapshot.get("declared_current_sources", []),
         "fault_current_channel": target_fault.get("current_channel"),
         "calibration_scale": 1.0,
@@ -658,8 +752,6 @@ def _merge_analysis_config(
     model_voltage = _optional_float(resolution.get("value_kv"))
     defaults = _default_analysis_config(snapshot)
     if config is None:
-        if model_voltage is None:
-            _default_analysis_config(snapshot)
         return defaults
     if config.get("output"):
         raise ValueError(
@@ -708,6 +800,8 @@ def _merge_analysis_config(
     )
     if snapshot.get("target_fault"):
         merged["analysis"]["target_fault_id"] = snapshot["target_fault"].get("id")
+    for key in ("fault_type", "fault_type_code", "fault_phases", "fault_connection_type", "terminal_connection"):
+        merged["analysis"][key] = defaults["analysis"][key]
     supplied_voltage = _optional_float(
         supplied_analysis.get("base_voltage_kv", supplied_analysis.get("base_voltage"))
     )
@@ -725,11 +819,8 @@ def _merge_analysis_config(
         merged["analysis"]["base_voltage_kv"] = model_voltage
         merged["analysis"]["base_voltage_source"] = resolution.get("source")
         merged["analysis"]["fault_bus"] = resolution.get("fault_bus")
-    elif supplied_voltage is None:
-        raise ValueError(
-            "No model-derived base voltage is available for the active fault; "
-            "the active fault bus must expose VBase."
-        )
+    else:
+        merged["analysis"]["base_voltage_kv"] = None
     return merged
 
 
@@ -741,6 +832,7 @@ def _validate_analysis_channel_prerequisites(
     declared_sources = snapshot.get("declared_current_sources", [])
     candidates = snapshot.get("declared_current_source_candidates", [])
     equivalent_pairs = resolved_config.get("channels", {}).get("equivalent_pairs", [])
+    _check_equivalent_fault(resolved_config["analysis"].get("fault_type"), equivalent_pairs)
     if declared_sources or equivalent_pairs:
         return
     fault_bus = snapshot.get("voltage_resolution", {}).get("fault_bus")
@@ -762,15 +854,17 @@ def _validate_analysis_channel_prerequisites(
 
 
 def _simulation_window(snapshot: dict[str, Any]) -> list[float] | None:
-    for job in snapshot.get("jobs", []):
+    jobs = snapshot.get("jobs", [])
+    index = snapshot.get("selected_job_index")
+    for job in (jobs if index is None else [jobs[index]]):
         if not isinstance(job, dict) or "emt" not in str(job.get("rid", "")).lower():
             continue
         args = job.get("args", {})
         if not isinstance(args, dict):
             continue
-        start = _number(args.get("begin_time"))
-        end = _number(args.get("end_time"))
-        if start is not None and end is not None and end > start:
+        start = _source_number(args.get("begin_time"))
+        end = _source_number(args.get("end_time"))
+        if start is not None and end is not None and math.isfinite(start) and math.isfinite(end) and end > start:
             return [start, end]
     return None
 
@@ -1045,6 +1139,15 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
     """Write the human-readable evidence report consumed by downstream tooling."""
     analysis = result_data.get("analysis", {})
     summary = result_data.get("summary", {})
+    windows = []
+    for label, key in (
+        ("全分析窗", "analysis_window"),
+        ("故障窗", "fault_window"),
+        ("故障子窗", "steady_fault_window"),
+    ):
+        bounds = analysis.get(key)
+        if bounds is not None:
+            windows.append(f"- {label} {bounds[0]:g}–{bounds[1]:g} s")
     lines = [
         "# 短路电流分析报告",
         "",
@@ -1053,40 +1156,53 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
         f"- 模型：`{result_data.get('model_rid') or result_data.get('model') or 'n/a'}`",
         f"- CloudPSS 仿真任务：`{result_data.get('task_id') or 'n/a'}`",
         f"- 目标故障：`{analysis.get('target_fault_id') or 'n/a'}`",
+        f"- 元件故障类型：`{analysis.get('fault_type') or 'n/a'}`",
+        f"- 元件选中相别：{', '.join(analysis.get('fault_phases') or []) or 'n/a'}",
+        f"- 故障端点接法：`{analysis.get('fault_connection_type') or 'n/a'}`",
         f"- 故障母线：`{analysis.get('fault_bus') or 'n/a'}`",
         f"- 基准线电压：{_markdown_value(analysis.get('base_voltage_kv'), 'kV')}",
         "- 分析电流统一单位：`kA`",
+        *windows,
         "",
         "## 汇总结论",
         "",
         f"- 分析通道数量：{summary.get('channel_count', 0)}",
-        f"- 最大峰值电流：{_markdown_value(summary.get('max_peak_current'), 'kA')}",
-        f"- 最大故障 RMS 电流：{_markdown_value(summary.get('max_fault_rms_current'), 'kA')}",
-        f"- 最大稳态故障 RMS 电流：{_markdown_value(summary.get('max_steady_fault_rms_current'), 'kA')}",
-        f"- 最大短路容量：{_markdown_value(summary.get('max_short_circuit_mva'), 'MVA')}",
+        f"- 全分析窗最大采样峰值：{_markdown_value(summary.get('max_peak_current'), 'kA')}",
+        f"- 故障窗最大采样峰值：{_markdown_value(summary.get('max_fault_peak_current'), 'kA')}",
+        f"- 最大故障窗总 RMS：{_markdown_value(summary.get('max_fault_rms_current'), 'kA')}",
+        f"- 最大故障子窗总 RMS：{_markdown_value(summary.get('max_steady_fault_rms_current'), 'kA')}",
+        f"- 最大三相近似短路容量：{_markdown_value(summary.get('max_short_circuit_mva'), 'MVA')}",
         f"- 最小 SCR：{_markdown_value(summary.get('min_scr'))}",
         f"- 最小 ESCR：{_markdown_value(summary.get('min_escr'))}",
         f"- 最弱电网等级：`{summary.get('worst_grid_strength') or 'not_assessed'}`",
         "",
         "## 通道指标",
         "",
-        "| 通道 | 原始单位 | 单位依据 | 峰值 (kA) | 故障 RMS (kA) | 稳态故障 RMS (kA) | 短路容量 (MVA) | SCR | ESCR |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| 通道 | 原始单位 | 单位依据 | 全分析窗采样峰值 (kA) | 故障窗采样峰值 (kA) | 故障窗总 RMS (kA) | 故障子窗总 RMS (kA) | 三相近似容量 (MVA) | SCR | ESCR | 测点或估算输入 | 换算至 kA 的系数 |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |",
     ]
     for channel in result_data.get("channels", []):
         metrics = channel.get("analysis", {})
         unit = channel.get("unit", {})
         thevenin = metrics.get("thevenin", {})
+        source = channel.get("source") or {}
+        inputs = channel.get("source_channels") or {}
+        measurement = source.get("source")
+        if inputs:
+            measurement = f"功率/电压估算，输入 {inputs.get('power')}、{inputs.get('voltage')}"
         cells = [
             channel.get("channel"),
             unit.get("raw_unit"),
             unit.get("unit_source"),
             metrics.get("peak_current"),
+            metrics.get("fault_peak_current"),
             metrics.get("fault_rms_current"),
             metrics.get("steady_fault_rms_current"),
             metrics.get("short_circuit_mva"),
             thevenin.get("scr"),
             thevenin.get("escr"),
+            measurement,
+            unit.get("effective_current_scale"),
         ]
         lines.append("| " + " | ".join(_markdown_value(value) for value in cells) + " |")
     lines.extend(
@@ -1099,11 +1215,24 @@ def _write_analysis_markdown(path: Path, result_data: dict[str, Any]) -> dict[st
             "",
             "## 方法与限制",
             "",
-            "- 真实电流通道的原始单位由其 CloudPSS 元件定义参数元数据确认，并在计算前换算为 kA。",
+            "- 直接电流通道的原始单位来自 CloudPSS 元件定义。表中换算系数包含明确指定的额外校准（如有）。",
             "- `waveform.csv` 保存参与分析的标准化电流；`raw_waveforms/` 保存 CloudPSS 原始数值。",
+            "- 全分析窗和故障窗采样峰值分别取各窗内样点的最大绝对值。故障窗总 RMS 为窗内样点平方均值的平方根，包含直流分量的贡献。子窗总 RMS 使用相同算法。",
             "- 短路容量采用三相近似 `Ssc = √3 × Vll(kV) × I(kA)`。",
+            "- 单相、两相及单支路事件按实际采样通道分析。接地形式以端点拓扑为依据，通道相序需要独立量测证据。",
             "- SCR/ESCR 与戴维南等值属于工程初筛，不替代设备校核级短路计算和并网专题研究。",
-            "- 完整逐点波形不写入本报告，避免把大量时序数据加载到智能体上下文。",
+            "",
+            "## 国标指标口径",
+            "",
+            "GB/T 15544.1-2023 第 1 章适用于额定 50 Hz 三相交流系统的平衡和不平衡短路。实际应用还须核对接地方式等条件，例如中性点不接地或谐振接地系统的一处单相接地故障超出该章范围。",
+            "",
+            "| 国标计算量 | 取值口径 | 本报告 |",
+            "| --- | --- | --- |",
+            "| 对称短路电流初始值 I″k（3.5、第 7 章） | 短路初始状态下预期电流的对称交流分量有效值。 | 需另行计算 |",
+            "| 短路电流峰值 iₚ（3.8、第 8 章） | 预期短路电流的最大可能瞬时值。 | 需另行计算 |",
+            "| 对称开断电流 I_b（3.9、第 9 章） | 开关第一对触头分断瞬间对应一个周期内的对称交流分量有效值。 | 需另行计算 |",
+            "",
+            "[GB/T 15544.1-2023 官方条目](https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=D86399BB0989F89A79B6CACBB666DA09)",
             "",
         ]
     )
@@ -1142,6 +1271,7 @@ def _write_analysis_code_snapshot(
     *,
     source: str,
     resolved_config: dict[str, Any],
+    workspace_handoff: str | Path | None = None,
 ) -> dict[str, Any]:
     """Write one self-contained source snapshot without waveforms or credentials."""
     runtime_path = Path(__file__).resolve()
@@ -1166,7 +1296,7 @@ def _write_analysis_code_snapshot(
     )
     connection_source = runtime_path.with_name("connection_resolution.py").read_text(encoding="utf-8")
     connection_source += "\nresolve_connections = resolve\nvoltage_number = number\n"
-    invocation = (
+    invocation = "" if workspace_handoff else (
         "\n\nif __name__ == '__main__':\n"
         f"    _REPRODUCTION_SOURCE = {source!r}\n"
         f"    _REPRODUCTION_CONFIG = json.loads({json.dumps(resolved_config, ensure_ascii=False)!r})\n"
@@ -1188,6 +1318,118 @@ def _write_analysis_code_snapshot(
     return {"path": path.name, "sha256": digest, "self_contained": True}
 
 
+def select_emt_schemes(model, job_index=None, config_index=None):
+    jobs = {index: job for index, job in enumerate(model.jobs) if job["rid"] in EMT_FUNCTIONS}
+    if job_index is None:
+        current = model.context.get("currentJob")
+        if type(current) is int and current in jobs:
+            job_index = current
+        elif len(jobs) == 1:
+            job_index = next(iter(jobs))
+        else:
+            raise ValueError(f"Select an EMT job index from {list(jobs)}")
+    if type(job_index) is not int or job_index not in jobs:
+        raise ValueError(f"Select an EMT job index from {list(jobs)}")
+    if config_index is None:
+        config_index = model.context.get("currentConfig", 0 if len(model.configs) == 1 else None)
+    if type(config_index) is not int or not 0 <= config_index < len(model.configs):
+        raise ValueError("Select a valid parameter scheme index")
+    return {"job_index": job_index, "config_index": config_index}
+
+
+def write_analysis_artifacts(model, job, resolved_config, snapshot, output_directory, progress, *, recovered=False):
+    """Generate analysis files from an already submitted job."""
+    task_id = _task_id_from_job(job)
+    source = progress["source"]
+    result = run_short_circuit_analysis(
+        model,
+        config=resolved_config,
+        job=job,
+    )
+    result["task_id"] = task_id
+    result["fault_connection_resolution"] = copy.deepcopy(snapshot.get("voltage_resolution"))
+    result["provenance"] = {
+        "model_parameters": "CloudPSS SDK Model.toJSON and Model.getAllComponents",
+        "waveform": "CloudPSS SDK EMTResult.getPlotChannelData",
+        "metrics": "short-circuit-analysis Skill runtime",
+        "recovered_from_task": recovered,
+    }
+    if progress.get("workspace") is not None:
+        result["workspace_submission"] = progress
+    else:
+        result["submission"] = progress
+
+    task_dir = output_directory / _safe_path_part(task_id, "task")
+    task_dir.mkdir(parents=True, exist_ok=True)
+    analysis_path = task_dir / "analysis_result.json"
+    model_parameters_path = task_dir / "model_parameters.json"
+    task_path = task_dir / "task.json"
+    waveform_path = task_dir / "waveform.csv"
+    waveform_summary_path = task_dir / "waveform_summary.json"
+    summary_csv_path = task_dir / "summary.csv"
+    markdown_path = task_dir / "analysis_report.md"
+    analysis_code_path = task_dir / "analysis_code.py"
+    raw_waveform_dir_name = "raw_waveforms"
+    waveform_metadata = _write_waveform_csv(
+        waveform_path,
+        _analysis_waveform_traces(job.result, result),
+    )
+    raw_waveform_metadata = _write_raw_channel_csvs(
+        task_dir,
+        raw_waveform_dir_name,
+        _collect_all_waveform_traces(job.result),
+        {
+            row["channel"]: {
+                "raw_unit": row.get("unit", {}).get("raw_unit"),
+                "unit_source": row.get("unit", {}).get("unit_source"),
+                "definition_rid": row.get("unit", {}).get("definition_rid"),
+            }
+            for row in result.get("channels", [])
+            if row.get("kind") == "current"
+        },
+    )
+    waveform_summary_metadata = _write_waveform_summary(waveform_summary_path, result)
+    summary_csv_metadata = _write_summary_csv(summary_csv_path, result)
+    markdown_metadata = _write_analysis_markdown(markdown_path, result)
+    analysis_code_metadata = _write_analysis_code_snapshot(
+        analysis_code_path,
+        source=source,
+        resolved_config=resolved_config,
+        workspace_handoff=progress.get("workspace") or recovered,
+    )
+    result["waveform_files"] = {
+        "selected": waveform_metadata,
+        "raw": raw_waveform_metadata,
+    }
+    result["artifacts"] = {
+        "waveform_summary": waveform_summary_metadata,
+        "summary_csv": summary_csv_metadata,
+        "analysis_report": markdown_metadata,
+        "analysis_code": analysis_code_metadata,
+    }
+    _write_json(model_parameters_path, snapshot)
+    _write_json(analysis_path, result)
+    _write_json(
+        task_path,
+        {
+            "task_id": task_id,
+            "status": "complete",
+            "model_rid": getattr(model, "rid", "") or source,
+            "selection": progress.get("selection"),
+            **({"workspace_submission": progress} if progress.get("workspace") else {}),
+            "model_parameters": model_parameters_path.name,
+            "analysis_result": analysis_path.name,
+            "waveform": waveform_path.name,
+            "waveform_summary": waveform_summary_path.name,
+            "summary_csv": summary_csv_path.name,
+            "analysis_report": markdown_path.name,
+            "analysis_code": analysis_code_path.name,
+            "raw_waveforms": raw_waveform_dir_name,
+        },
+    )
+    return {"task_id": task_id}
+
+
 def analyze_model_from_source(
     source: str,
     config: dict[str, Any] | None = None,
@@ -1195,6 +1437,9 @@ def analyze_model_from_source(
     output_dir: str | Path | None = None,
     timeout: int = 300,
     fetch_timeout: float = DEFAULT_MODEL_FETCH_TIMEOUT,
+    workspace_handoff: str | Path | None = None,
+    job_index: int | None = None,
+    config_index: int | None = None,
 ) -> dict[str, Any]:
     """Run one analysis and return only its CloudPSS EMT task ID."""
     if not isinstance(source, str) or not source.strip():
@@ -1206,11 +1451,32 @@ def analyze_model_from_source(
     task_id: str | None = None
     simulation_completed = False
     try:
+        prepared = None
+        if workspace_handoff is not None:
+            if job_index is not None or config_index is not None:
+                raise ValueError("A handoff already specifies the EMT and parameter schemes")
+            model, prepared = load_prepared_workspace(workspace_handoff)
+            if Path(source).resolve() != Path(prepared["model_document"]).resolve():
+                raise ValueError("Analysis source must be the document named in the handoff")
+            binding = prepared["binding"]
+            config = copy.deepcopy(config or {})
+            analysis = config.setdefault("analysis", {})
+            if analysis.get("target_fault_id", binding["component"]) != binding["component"]:
+                raise ValueError("Requested fault differs from the prepared workspace")
+            analysis["target_fault_id"] = binding["component"]
+            if config.get("channels", {}).get("equivalent_pairs"):
+                raise ValueError("The prepared workspace uses the recorded fault current")
         _configure_cloudpss_auth()
-        model = load_model_from_source(source, fetch_timeout=fetch_timeout)
+        if prepared is None:
+            model = load_model_from_source(source, fetch_timeout=fetch_timeout)
         _emit_stage(stage)
 
         stage = "model_parameters"
+        if prepared:
+            job_index, config_index = binding["job_index"], binding["config_index"]
+        selected = select_emt_schemes(model, job_index, config_index)
+        model.context["currentConfig"] = selected["config_index"]
+        model.context["currentJob"] = selected["job_index"]
         requested_analysis = config.get("analysis", {}) if isinstance(config, dict) else {}
         target_fault_id = (
             requested_analysis.get("target_fault_id")
@@ -1218,100 +1484,67 @@ def analyze_model_from_source(
             else None
         )
         snapshot = inspect_model(model, target_fault_id=target_fault_id)
-
+        snapshot["selected_job_index"] = selected["job_index"]
+        snapshot["selected_config_index"] = selected["config_index"]
+        if prepared is not None:
+            snapshot["declared_current_sources"] = [
+                {**item, "signal_dimension": binding["dimension"]}
+                for item in snapshot["declared_current_sources"]
+                if item.get("component_id") == binding["component"]
+                and item.get("channel") == binding["signal"]]
         if not snapshot.get("faults", {}).get("active"):
             raise RuntimeError(
                 "No active fault scenario was found in the model. Configure a fault in CloudPSS "
                 "before requesting short-circuit analysis."
             )
 
-        # Only advance the checkpoint after configuration resolution succeeds.
+        window = _simulation_window(snapshot)
+        target_window = _active_fault_window(snapshot, snapshot["target_fault"])
+        if window is None or target_window is None or not (
+            window[0] < target_window[0] < target_window[1] < window[1]
+        ):
+            raise ValueError("Selected EMT scheme must cover pre-fault, fault and post-fault windows")
         resolved_config = _merge_analysis_config(config, snapshot)
+        for name in ("analysis_window", "prefault_window", "fault_window", "postfault_window", "steady_fault_window"):
+            requested_window = resolved_config["analysis"].get(name)
+            if requested_window is not None and not (
+                isinstance(requested_window, (list, tuple)) and len(requested_window) == 2
+                and all(type(value) in (float, int) and math.isfinite(value) for value in requested_window)
+                and window[0] <= requested_window[0] < requested_window[1] <= window[1]
+            ):
+                raise ValueError(f"{name} must be inside the selected EMT time range {window}")
         _validate_analysis_channel_prerequisites(snapshot, resolved_config)
         _emit_stage(stage)
         stage = "emt_analysis"
-        job = run_emt(model, timeout=timeout)
+        receipt = target_dir / "submission.json"
+        saved_context = {
+            "schema": 1, "resolved_config": resolved_config, "snapshot": snapshot,
+            "model_rid": getattr(model, "rid", "") or source, "model_name": getattr(model, "name", ""),
+        }
+        context_payload = json.dumps(saved_context, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        context_path = target_dir / "analysis-context.json"
+        progress = {"status": "submission_started", "source": source, "selection": selected,
+                    "analysis_context_sha256": hashlib.sha256(context_payload).hexdigest()}
+        if prepared:
+            progress["workspace"] = prepared
+        with receipt.open("x", encoding="utf-8") as stream:
+            json.dump(progress, stream, ensure_ascii=False)
+        context_path.write_bytes(context_payload)
+
+        def record_job(submitted):
+            nonlocal task_id
+            task_id = _task_id_from_job(submitted)
+            progress.update(status="submitted", task_id=task_id,
+                            revision_hash=(getattr(submitted, "args", {}) or {}).get("_ModelRevision"))
+            # Keep the initial receipt readable if updating it is interrupted.
+            pending = receipt.with_suffix(".tmp")
+            _write_json(pending, progress)
+            pending.replace(receipt)
+
+        job = run_emt(model, timeout=timeout, on_submit=record_job, **selected)
         simulation_completed = True
         task_id = _task_id_from_job(job)
-        result = run_short_circuit_analysis(
-            model,
-            config=resolved_config,
-            job=job,
-            timeout=timeout,
-        )
-        result["task_id"] = task_id
-        result["fault_connection_resolution"] = copy.deepcopy(snapshot.get("voltage_resolution"))
-        result["provenance"] = {
-            "model_parameters": "CloudPSS SDK Model.toJSON and Model.getAllComponents",
-            "waveform": "CloudPSS SDK EMTResult.getPlotChannelData",
-            "metrics": "short-circuit-analysis Skill runtime",
-        }
-
-        task_dir = target_dir / _safe_path_part(task_id, "task")
-        task_dir.mkdir(parents=True, exist_ok=True)
-        analysis_path = task_dir / "analysis_result.json"
-        model_parameters_path = task_dir / "model_parameters.json"
-        task_path = task_dir / "task.json"
-        waveform_path = task_dir / "waveform.csv"
-        waveform_summary_path = task_dir / "waveform_summary.json"
-        summary_csv_path = task_dir / "summary.csv"
-        markdown_path = task_dir / "analysis_report.md"
-        analysis_code_path = task_dir / "analysis_code.py"
-        raw_waveform_dir_name = "raw_waveforms"
-        waveform_metadata = _write_waveform_csv(
-            waveform_path,
-            _analysis_waveform_traces(job.result, result),
-        )
-        raw_waveform_metadata = _write_raw_channel_csvs(
-            task_dir,
-            raw_waveform_dir_name,
-            _collect_all_waveform_traces(job.result),
-            {
-                row["channel"]: {
-                    "raw_unit": row.get("unit", {}).get("raw_unit"),
-                    "unit_source": row.get("unit", {}).get("unit_source"),
-                    "definition_rid": row.get("unit", {}).get("definition_rid"),
-                }
-                for row in result.get("channels", [])
-                if row.get("kind") == "current"
-            },
-        )
-        waveform_summary_metadata = _write_waveform_summary(waveform_summary_path, result)
-        summary_csv_metadata = _write_summary_csv(summary_csv_path, result)
-        markdown_metadata = _write_analysis_markdown(markdown_path, result)
-        analysis_code_metadata = _write_analysis_code_snapshot(
-            analysis_code_path,
-            source=source,
-            resolved_config=resolved_config,
-        )
-        result["waveform_files"] = {
-            "selected": waveform_metadata,
-            "raw": raw_waveform_metadata,
-        }
-        result["artifacts"] = {
-            "waveform_summary": waveform_summary_metadata,
-            "summary_csv": summary_csv_metadata,
-            "analysis_report": markdown_metadata,
-            "analysis_code": analysis_code_metadata,
-        }
-        _write_json(model_parameters_path, snapshot)
-        _write_json(analysis_path, result)
-        _write_json(
-            task_path,
-            {
-                "task_id": task_id,
-                "status": "complete",
-                "model_rid": source,
-                "model_parameters": model_parameters_path.name,
-                "analysis_result": analysis_path.name,
-                "waveform": waveform_path.name,
-                "waveform_summary": waveform_summary_path.name,
-                "summary_csv": summary_csv_path.name,
-                "analysis_report": markdown_path.name,
-                "analysis_code": analysis_code_path.name,
-                "raw_waveforms": raw_waveform_dir_name,
-            },
-        )
+        write_analysis_artifacts(model, job, resolved_config, snapshot, target_dir, progress)
         _emit_stage(stage)
         _emit_stage("complete")
         return {"task_id": task_id}
@@ -1360,8 +1593,14 @@ def wait_for_completion(job, timeout: int = 300, interval: int = 3) -> int:
         time.sleep(interval)
 
 
-def run_emt(model, *, timeout: int = 300):
-    job = model.runEMT()
+def run_emt(model, *, timeout: int = 300, job_index=None, config_index=None, on_submit=None):
+    if job_index is None and config_index is None:
+        job = model.runEMT()
+    else:
+        job = model.runEMT(job=copy.deepcopy(model.jobs[job_index]),
+                           config=copy.deepcopy(model.configs[config_index]))
+    if on_submit is not None:
+        on_submit(job)
     final_status = wait_for_completion(job, timeout=timeout)
     if final_status == -1:
         raise TimeoutError("EMT job timed out")
@@ -1432,6 +1671,10 @@ def _resolve_config(config: dict[str, Any] | None) -> dict[str, Any]:
         "fault_bus": analysis.get("fault_bus"),
         "target_fault_id": analysis.get("target_fault_id"),
         "fault_type": analysis.get("fault_type"),
+        "fault_type_code": analysis.get("fault_type_code"),
+        "fault_phases": analysis.get("fault_phases", []),
+        "fault_connection_type": analysis.get("fault_connection_type"),
+        "terminal_connection": analysis.get("terminal_connection"),
         "declared_current_sources": declared_current_sources,
         "fault_current_channel": analysis.get("fault_current_channel"),
         "calibration_scale": float(analysis.get("calibration_scale", 1.0)),
@@ -1610,11 +1853,14 @@ def _select_declared_current_traces(
     declared_sources: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Select traces only from model-declared fault or fault-bus channels."""
+    if max_channels < 1:
+        raise ValueError("channels.auto_max_channels must be positive")
     for source in declared_sources:
         channel_stem = _source_text(source.get("channel"))
         if not channel_stem:
             continue
-        candidates: list[dict[str, Any]] = []
+        candidates: dict[int | None, dict[str, Any]] = {}
+        expected = source.get("signal_dimension", source.get("current_unit", {}).get("signal_dimension"))
         for plot_index, plot in enumerate(result.getPlots()):
             for channel_name in result.getPlotChannelNames(plot_index):
                 channel_text = str(channel_name)
@@ -1623,24 +1869,41 @@ def _select_declared_current_traces(
                     or channel_text.startswith(f"{channel_stem}:")
                 ):
                     continue
+                suffix = channel_text[len(channel_stem):]
+                if suffix and not re.fullmatch(r":(?:0|[1-9][0-9]*)", suffix):
+                    raise ValueError(f"Invalid current component index in channel {channel_text!r}")
+                index = int(suffix[1:]) if suffix else None
+                if index in candidates:
+                    raise ValueError(f"Duplicate EMT current channel {channel_text!r}")
                 data = result.getPlotChannelData(plot_index, channel_text)
                 if not data:
-                    continue
+                    raise ValueError(f"Missing waveform data for EMT current channel {channel_text!r}")
                 x_values = [float(value) for value in data.get("x", [])]
                 y_values = [float(value) for value in data.get("y", [])]
-                if len(x_values) > 1 and len(x_values) == len(y_values):
-                    candidates.append(
-                        {
-                            "kind": "current",
-                            "channel": channel_text,
-                            "plot_index": plot_index,
-                            "plot": _plot_name(plot, plot_index),
-                            "trace": {"x": x_values, "y": y_values},
-                            "declared_source": dict(source),
-                        }
-                    )
-        if candidates:
-            return candidates[:max_channels]
+                if len(x_values) < 2 or len(x_values) != len(y_values):
+                    raise ValueError(f"Incomplete waveform data for EMT current channel {channel_text!r}")
+                candidates[index] = {
+                    "kind": "current",
+                    "channel": channel_text,
+                    "plot_index": plot_index,
+                    "plot": _plot_name(plot, plot_index),
+                    "trace": {"x": x_values, "y": y_values},
+                    "declared_source": dict(source),
+                }
+        if not candidates:
+            continue
+        if None in candidates:
+            if len(candidates) != 1 or expected not in (None, 1):
+                raise ValueError(f"Inconsistent scalar and component output for {channel_stem!r}; expected dimension {expected}")
+            return [candidates[None]]
+        indices = sorted(candidates)
+        expected_count = expected if expected is not None else len(indices)
+        if len(indices) != expected_count or any(index != offset for offset, index in enumerate(indices)):
+            raise ValueError(
+                f"Incomplete or unexpected EMT current components for {channel_stem!r}: "
+                f"received indices {indices}, expected {expected_count} contiguous indices from 0"
+            )
+        return [candidates[index] for index in indices[:max_channels]]
     return []
 
 
@@ -1941,7 +2204,7 @@ def analyze_short_circuit_trace(
     trace: dict[str, list[float]],
     *,
     kind: str,
-    base_voltage_kv: float,
+    base_voltage_kv: float | None,
     current_scale: float,
     analysis_window: list[float] | tuple[float, float] | None,
     prefault_window: list[float] | tuple[float, float] | None,
@@ -2032,8 +2295,10 @@ def analyze_short_circuit_trace(
         "fault_to_prefault_rms_ratio": fault_rms / prefault_rms if prefault_rms > 1e-12 else None,
         "postfault_to_prefault_rms_ratio": postfault_rms / prefault_rms if prefault_rms > 1e-12 else None,
         "dc_offset_estimate": dc_offset,
-        "short_circuit_mva": _short_circuit_mva(fault_rms, base_voltage_kv),
-        "steady_fault_short_circuit_mva": _short_circuit_mva(steady_fault_rms, base_voltage_kv),
+        "short_circuit_mva": _short_circuit_mva(fault_rms, base_voltage_kv) if base_voltage_kv is not None else None,
+        "steady_fault_short_circuit_mva": (
+            _short_circuit_mva(steady_fault_rms, base_voltage_kv) if base_voltage_kv is not None else None
+        ),
     }
 
 
@@ -2128,6 +2393,11 @@ def _summarize_thevenin(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _check_equivalent_fault(fault_type, pairs):
+    if pairs and fault_type not in (None, "three_phase_fault"):
+        raise ValueError("This power/voltage estimate requires a three-phase fault; use direct current waveforms")
+
+
 def run_short_circuit_analysis(
     model,
     config: dict[str, Any] | None = None,
@@ -2137,7 +2407,9 @@ def run_short_circuit_analysis(
 ) -> dict[str, Any]:
     """Analyze one existing or newly created EMT Job without exporting report files."""
     resolved = _resolve_config(config)
-    if resolved["base_voltage_kv"] is None or resolved["base_voltage_kv"] <= 0:
+    balanced_metrics = resolved["fault_type"] in (None, "three_phase_fault")
+    _check_equivalent_fault(resolved["fault_type"], resolved["equivalent_pairs"])
+    if balanced_metrics and (resolved["base_voltage_kv"] is None or resolved["base_voltage_kv"] <= 0):
         raise ValueError(
             "analysis.base_voltage_kv is required and must be positive; "
             "resolve it from the active fault bus or provide it explicitly."
@@ -2190,7 +2462,7 @@ def run_short_circuit_analysis(
         analysis = analyze_short_circuit_trace(
             item["trace"],
             kind=item["kind"],
-            base_voltage_kv=resolved["base_voltage_kv"],
+            base_voltage_kv=resolved["base_voltage_kv"] if balanced_metrics else None,
             current_scale=effective_current_scale,
             analysis_window=resolved["analysis_window"],
             prefault_window=resolved["prefault_window"],
@@ -2274,7 +2546,8 @@ def run_short_circuit_analysis(
             "fault element or fault bus, or explicitly provide equivalent_pairs for estimation."
         )
 
-    if resolved["thevenin"]["enabled"]:
+    thevenin_enabled = balanced_metrics and resolved["thevenin"]["enabled"]
+    if thevenin_enabled:
         for row in rows:
             row["analysis"]["thevenin"] = _thevenin_from_short_circuit(
                 short_circuit_mva=row["analysis"]["short_circuit_mva"],
@@ -2290,9 +2563,9 @@ def run_short_circuit_analysis(
     max_peak = max(row["analysis"]["peak_current"] for row in rows)
     max_fault_rms = max(row["analysis"]["fault_rms_current"] for row in rows)
     max_steady_fault_rms = max(row["analysis"]["steady_fault_rms_current"] for row in rows)
-    max_steady_scc = max(row["analysis"]["steady_fault_short_circuit_mva"] for row in rows)
-    max_scc = max(row["analysis"]["short_circuit_mva"] for row in rows)
-    thevenin_summary = _summarize_thevenin(rows) if resolved["thevenin"]["enabled"] else {"enabled": False, "channel_count": 0}
+    max_steady_scc = max(row["analysis"]["steady_fault_short_circuit_mva"] for row in rows) if balanced_metrics else None
+    max_scc = max(row["analysis"]["short_circuit_mva"] for row in rows) if balanced_metrics else None
+    thevenin_summary = _summarize_thevenin(rows)
     result_data = {
         "model": getattr(model, "name", ""),
         "model_rid": getattr(model, "rid", ""),
@@ -2305,6 +2578,10 @@ def run_short_circuit_analysis(
             "fault_bus": resolved["fault_bus"],
             "target_fault_id": resolved["target_fault_id"],
             "fault_type": resolved["fault_type"],
+            "fault_type_code": resolved["fault_type_code"],
+            "fault_phases": resolved["fault_phases"],
+            "fault_connection_type": resolved["fault_connection_type"],
+            "terminal_connection": resolved["terminal_connection"],
             "normalized_current_unit": "kA",
             "calibration_scale": resolved["calibration_scale"],
             "power_scale_mw": resolved["power_scale_mw"],
@@ -2320,13 +2597,14 @@ def run_short_circuit_analysis(
             "min_samples": resolved["min_samples"],
         },
         "thevenin": {
-            "enabled": resolved["thevenin"]["enabled"],
+            "enabled": thevenin_enabled,
             "input": resolved["thevenin"],
             "summary": thevenin_summary,
         },
         "summary": {
             "channel_count": len(rows),
             "max_peak_current": max_peak,
+            "max_fault_peak_current": max(row["analysis"]["fault_peak_current"] for row in rows),
             "max_fault_rms_current": max_fault_rms,
             "max_steady_fault_rms_current": max_steady_fault_rms,
             "max_short_circuit_mva": max_scc,

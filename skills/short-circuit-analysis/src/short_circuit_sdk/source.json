@@ -1,0 +1,28 @@
+{
+  "component_model.py": {
+    "upstream_sha256": "a07679d7725a03f2d6d6c6b87d1f8b9d6ad265d7b907976dce726b98e1ed0f75",
+    "symbols": [
+      "_error_diagnostics"
+    ]
+  },
+  "remote_reads.py": {
+    "upstream_sha256": "7a1bc5c81ae20e8b3c946495e931100a0cefaa01cb1f5e1389cf75a5e3855715",
+    "symbols": [
+      "RemoteReadError",
+      "_request"
+    ]
+  },
+  "job_results.py": {
+    "upstream_sha256": "8d5b717877c5497463612ab7988c9fb2fc88b33281afe3fd8ec7fd006cbf87b3",
+    "symbols": [
+      "JOB_RECORD_QUERY",
+      "_job_id",
+      "fetch_job_record_info"
+    ]
+  },
+  "result_stream.py": {
+    "upstream_sha256": "cb20281d718d5b9d09c7ca6cc617f98c1a5c53963327189498a1c038160f736b",
+    "symbols": "full file",
+    "local_adjustment": "read_job_results accepts already fetched task metadata under the same deadline"
+  }
+}
