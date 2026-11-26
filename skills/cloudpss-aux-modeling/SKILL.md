@@ -1,5 +1,6 @@
 ---
 name: cloudpss-aux-modeling
+version: 1.0.0
 description: 为 CloudPSS 短路分析准备工作模型。当用户要编辑故障场景的元件或接线、调整故障参数、补充 EMT 电流记录或另存准备好的模型时使用。
 metadata:
   short-description: CloudPSS 短路辅助建模

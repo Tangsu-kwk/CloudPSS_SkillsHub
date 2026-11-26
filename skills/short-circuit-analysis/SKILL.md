@@ -1,5 +1,6 @@
 ---
 name: short-circuit-analysis
+version: 1.0.0
 description: 当用户询问单相、两相或三相短路计算与指标，解读或继续读取已有 CloudPSS EMT 任务，或要求分析已配置故障的 CloudPSS 模型时使用。
 license: Internal Use Only
 metadata:

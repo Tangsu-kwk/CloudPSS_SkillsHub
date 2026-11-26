@@ -1,5 +1,6 @@
 ---
 name: cloudpss-model-operations
+version: 1.0.0
 description: 查询和编辑 CloudPSS 模型。当用户需要查看模型中的元件、接线或参数，或要求在模型上增删元件、调整接线、修改元件参数或参数方案时使用。
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: cloudpss-diagram-modeling
+version: 1.0.0
 description: 识图建模：依据电路图和元件参数表从空白创建 CloudPSS 模型，并做潮流或电磁暂态验证与结果核对；也用于按 jobId 读取已有仿真和提取波形指标，或按指定计算方案、参数方案提交单次运行和批量工况。
 ---
 

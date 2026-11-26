@@ -1,5 +1,6 @@
 ---
 name: generate-simulation-report
+version: 1.0.0
 description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与访问 Token 导出潮流或电磁暂态结果，或使用已有本地结果文件，生成数据驱动、可交互的 HTML 分析报告。适用于仿真、试验、模型运行、波形、时间序列、计算结果和工程分析；当用户提供结果 RID、要求读取 CloudPSS 仿真结果，或需要将 Markdown、JSON、CSV 和原始时序数据组织为带图表、表格、证据化文字和可追溯来源的 HTML 报告时使用。
 ---
 
