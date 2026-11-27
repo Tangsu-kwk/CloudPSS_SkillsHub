@@ -28,3 +28,9 @@ def configure_cloudpss(config_path=None):
     for env, value in values.items():
         if not os.environ.get(env, '').strip():
             os.environ[env] = value
+    if 'CLOUDPSS_API_URL' in values and 'CLOUDPSS_TOKEN' not in values \
+            and (os.environ.get('CLOUDPSS_TOKEN', '').strip()
+                 or os.environ.get('CLOUDPSS_LOGIN_TOKEN', '').strip()):
+        # 同源配对: 环境令牌 + YAML 地址的组合可把受信令牌发给未受信主机
+        raise ValueError('Refusing to pair an environment token with a YAML-supplied api_url; '
+                         'configure token and api_url in the same source')

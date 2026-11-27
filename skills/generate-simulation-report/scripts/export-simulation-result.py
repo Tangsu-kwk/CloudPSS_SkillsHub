@@ -22,10 +22,15 @@ def output_directory(workspace: Path, result_rid: str) -> Path:
         raise ValueError("result_rid 格式无效")
 
     workspace = workspace.resolve()
+    root = (workspace / OUTPUT_ROOT).resolve()
     output = (workspace / OUTPUT_ROOT / result_rid).resolve()
     # result_rid 会参与路径拼接，必须确认最终目录仍在当前工作区内。
     if workspace not in output.parents:
         raise ValueError("输出目录必须位于当前工作区")
+    # 进一步限定: 解析符号链接后必须是 simulation-results/ 的直接子目录——
+    # 防止工作区内的符号链接(如指向 .report-build/)把原始结果写进预览服务目录。
+    if output.parent != root:
+        raise ValueError("输出目录必须是 simulation-results/ 的直接子目录")
     return output
 
 

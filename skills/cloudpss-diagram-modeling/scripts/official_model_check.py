@@ -31,8 +31,13 @@ def check_official(model, *, config_index=None, job_index=None, definitions=None
                 'problems': []}
 
 
+_OFFICIAL_PASS_STATUSES = {'checked', 'partial', 'not_applicable'}
+
+
 def require_official_check(report):
-    if report['status'] in {'failed', 'issues'}:
+    """放行白名单: 未知的新状态一律视为未通过(fail-closed),
+    防止检查器未来引入新状态时被默认放行。"""
+    if report['status'] not in _OFFICIAL_PASS_STATUSES:
         raise OfficialCheckError(report)
 
 

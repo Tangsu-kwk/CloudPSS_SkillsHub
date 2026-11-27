@@ -19,8 +19,18 @@ def activate():
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     if digest != manifest['sha256']:
         raise RuntimeError('Bundled SDK checksum mismatch; restore the verified wheel')
-    cache = Path(tempfile.gettempdir()) / 'cloudpss-shitu-sdk' / digest
+    # 缓存目录必须用户私有: 共享临时目录(如 POSIX /tmp)可被其他本地账号预置,
+    # 仅凭 .ready 存在就把缓存加入 sys.path 首位, 会让未校验代码获得导入优先权。
+    # 改用用户主目录(多用户系统上 ACL 隔离), 并在命中前校验 .ready 内容与 wheel 摘要一致。
+    cache = Path.home() / '.cache' / 'cloudpss-shitu-sdk' / digest
     ready = cache / '.ready'
+    if ready.is_file():
+        try:
+            ready_ok = ready.read_text(encoding='ascii').strip() == digest
+        except (OSError, UnicodeDecodeError):
+            ready_ok = False
+        if not ready_ok:
+            shutil.rmtree(cache, ignore_errors=True)  # 缓存损坏/被篡改: 重建
     if not ready.is_file():
         cache.parent.mkdir(parents=True, exist_ok=True)
         staging = Path(tempfile.mkdtemp(prefix='extract-', dir=cache.parent))

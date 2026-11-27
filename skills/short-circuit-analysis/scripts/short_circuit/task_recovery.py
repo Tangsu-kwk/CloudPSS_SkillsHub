@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 from pathlib import Path
 import sys
 import time
@@ -38,8 +39,9 @@ def _read_context(directory, task_id):
 
 
 def read_task(task_id, *, action, output_dir=None, timeout=30):
-    if timeout <= 0:
-        raise ValueError("Timeout must be positive")
+    if (not isinstance(timeout, (int, float)) or isinstance(timeout, bool)
+            or not math.isfinite(timeout) or timeout <= 0):
+        raise ValueError(f"Timeout must be a finite positive number, got {timeout!r}")
     if str(UUID(task_id)) != task_id:
         raise ValueError("Provide the CloudPSS task UUID")
     if action == "resume":

@@ -3,6 +3,7 @@
 import argparse
 from contextlib import redirect_stdout
 import json
+import math
 from pathlib import Path
 import re
 import sys
@@ -17,8 +18,8 @@ def model_rid(value):
 def analyze(args):
     from short_circuit.runtime import analyze_model_from_source, load_prepared_workspace
 
-    if args.timeout <= 0:
-        raise ValueError("Timeout must be positive")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        raise ValueError("Timeout must be a finite positive number")
     if (args.output_dir / "submission.json").exists():
         raise ValueError("This output directory already has a submission receipt; inspect it before another run")
 

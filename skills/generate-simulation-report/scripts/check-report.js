@@ -35,7 +35,9 @@ function collectIssues(mode, content, plotly) {
   if (!/<title>[^<]+<\/title>/i.test(content)) issues.push('Missing or empty document title.');
   if (content.includes(PLOTLY_MARKER)) issues.push('Unreplaced REPORT_PLOTLY marker found.');
   if (/\{\{[A-Z0-9_]+\}\}/.test(content)) issues.push('Unreplaced template placeholder found.');
-  if (/(?:-join\s+|ForEach-Object|ConvertTo-Json|powershell)/i.test(visibleContent)) issues.push('Generator syntax appears in the report.');
+  // 仅拦截命令调用形态的生成器语法; 正文/图表数据里被正确转义的普通词汇
+  // (如证据文本提及该命令名)不应阻断交付——裸词匹配会产生合法证据误报。
+  if (/(?:powershell(?:\.exe)?\s+-\w|\bpwsh\b\s+-\w|-join\s+\(|ForEach-Object\s*\{)/i.test(visibleContent)) issues.push('Generator syntax appears in the report.');
   if (visibleContent.includes('\uFFFD')) issues.push('Replacement-character encoding issue found outside the Plotly library.');
   if (/<section(?![^>]*class=["'][^"']*chart)[^>]*>\s*<\/section>/i.test(visibleContent)) issues.push('Empty section found.');
   if (scriptOpenCount !== scriptCloseCount) issues.push('Script opening and closing tag counts differ.');
