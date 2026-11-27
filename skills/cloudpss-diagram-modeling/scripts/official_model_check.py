@@ -12,10 +12,11 @@ import sys
 
 
 class OfficialCheckError(ValueError):
-    def __init__(self, report):
-        super().__init__('Official model check found errors or could not complete')
+    def __init__(self, report, reason='Official model check found errors or could not complete'):
         self.problems = report.get('problems') or []
         self.report = report
+        super().__init__(f"{reason}; status={report.get('status')!r}; coverage={report.get('coverage')!r}; "
+                         f"problems ({len(self.problems)})={self.problems[:3]!r}")
 
 
 def check_official(model, *, config_index=None, job_index=None, definitions=None):
@@ -31,14 +32,17 @@ def check_official(model, *, config_index=None, job_index=None, definitions=None
                 'problems': []}
 
 
-_OFFICIAL_PASS_STATUSES = {'checked', 'partial', 'not_applicable'}
-
-
-def require_official_check(report):
-    """放行白名单: 未知的新状态一律视为未通过(fail-closed),
-    防止检查器未来引入新状态时被默认放行。"""
-    if report['status'] not in _OFFICIAL_PASS_STATUSES:
-        raise OfficialCheckError(report)
+def require_official_check(report, *, coverage_review=None):
+    """Reject unknown statuses and require an explicit review of uncovered items."""
+    status = report.get('status')
+    if status == 'checked':
+        return
+    if status in ('partial', 'not_applicable'):
+        if not isinstance(coverage_review, str) or not coverage_review.strip():
+            raise OfficialCheckError(report, 'uncovered items were not reviewed')
+        report['coverage_review'] = coverage_review
+        return
+    raise OfficialCheckError(report)
 
 
 def worker(payload):

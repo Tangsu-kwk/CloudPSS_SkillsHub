@@ -20,7 +20,7 @@ metadata:
 
 ## 解读已有结果
 
-使用用户给出的报告、结果文件或指定任务。从实际记录核对故障工况、测点或通道、单位、时间窗和所用方法，再解释对应数值。相序需要模型或量测绑定证据。需要读字段时参照 [指标与标准](references/metrics-and-standards.md)。已有任务按 [任务续读入口](references/cloudpss-analysis.md#查询和继续已有任务) 查询状态或导出波形。当前会话有该任务的提交回执和分析上下文时，可接着生成短路指标。用户要求 HTML 报告时，将有效任务 ID 或可用结果交给报告流程。
+使用用户给出的报告、结果文件或指定任务。从实际记录核对故障工况、测点或通道、单位、时间窗和所用方法，再解释对应数值。相序需要模型或量测绑定证据。需要读字段时参照 [指标与标准](references/metrics-and-standards.md)。已有任务按 [任务续读入口](references/cloudpss-analysis.md#查询和继续已有任务) 查询状态或导出波形。当前会话有该任务的提交回执和分析上下文时，可接着生成短路指标。用户要求 HTML 报告时，将有效任务 ID 或可用结果交给报告流程。HTML 报告由 `generate-simulation-report` Skill 承接：将 `task_id` 和导出目录交给其 [SKILL.md「工作流」第 1 步](../generate-simulation-report/SKILL.md#工作流)，报告验收入口为 `scripts/check-report.js`。
 
 ## 运行指定故障的 EMT
 
@@ -30,4 +30,4 @@ metadata:
 
 单相、两相故障按所选相别、故障端点接法和实际电流通道解读。用户说“两相短路”且工况尚未确定时，确认是哪两相、是否接地。遇到单支路电阻切换，先根据接线和用户目标确认它代表的事件。相关输出和适用口径见 [指标与标准](references/metrics-and-standards.md)。
 
-计算入口以 `{"task_id":"<实际 CloudPSS Job ID>"}` 交出成功结果。按宿主接口要求传递该对象。用户还要求解释指标时，以同次计算的结果为依据继续解读。用户已要求出报告时，将本次任务 ID 和可用的分析报告、分析 JSON 交给报告流程。按[指标对照表](references/metrics-and-standards.md#emt-报告字段与-gbt-155441-2023-指标对照)说明测点、通道、单位、取窗和指标来源。现有 EMT 采样值只按运行结果交付，国标计算量按适用条件另行求取。
+计算入口以 `{"task_id":"<实际 CloudPSS Job ID>"}` 交出成功结果。按宿主接口要求传递该对象。用户还要求解释指标时，以同次计算的结果为依据继续解读。用户已要求出报告时，将本次任务 ID 和可用的分析报告、分析 JSON 交给报告流程。按[指标对照表](references/metrics-and-standards.md#emt-报告字段与-gbt-155441-2023-指标对照)说明测点、通道、单位、取窗和指标来源。现有 EMT 采样值只按运行结果交付，国标计算量按适用条件另行求取。HTML 报告由 `generate-simulation-report` Skill 承接：将 `task_id` 和导出目录交给其 [SKILL.md「工作流」第 1 步](../generate-simulation-report/SKILL.md#工作流)，报告验收入口为 `scripts/check-report.js`。
