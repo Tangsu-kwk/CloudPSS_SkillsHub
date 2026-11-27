@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 // 所有构建脚本共享同一份版本和资源定义，避免 CDN 与本地资源版本漂移。
 const PLOTLY_VERSION = '2.35.2';
@@ -21,6 +22,13 @@ function assertEnvironment() {
     throw new Error(`Local Plotly version marker does not match ${PLOTLY_VERSION}.`);
   }
   return plotly;
+}
+
+function plotlyIntegrityHash() {
+  // SRI 哈希以 skill 内置的同版本文件为准：CDN 返回内容与本地副本字节一致才允许执行，
+  // 校验失败时浏览器按脚本加载失败处理，走既有的 onerror 降级提示。
+  const buf = fs.readFileSync(PLOTLY_PATH);
+  return `sha384-${crypto.createHash('sha384').update(buf).digest('base64')}`;
 }
 
 function parseModeArguments(argv, usage) {
@@ -46,6 +54,7 @@ module.exports = {
   PLOTLY_MARKER,
   PLOTLY_PATH,
   assertEnvironment,
+  plotlyIntegrityHash,
   parseModeArguments,
   countOccurrences
 };

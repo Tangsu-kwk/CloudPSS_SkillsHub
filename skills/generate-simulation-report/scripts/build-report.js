@@ -7,13 +7,15 @@ const {
   PLOTLY_MARKER,
   assertEnvironment,
   countOccurrences,
-  parseModeArguments
+  parseModeArguments,
+  plotlyIntegrityHash
 } = require('./report-runtime');
 const { CHART_SPECS_ID, buildRendererPayload, collectScriptBlocks, validateChartContract } = require('./report-chart-contract');
 
-function buildCdnPayload() {
-  // CDN 加载失败时，仅在图表容器中展示明确提示，不伪造静态图或数据结论。
-  return `<script id="report-plotly-library" src="${PLOTLY_CDN_URL}" onerror="window.__reportPlotlyLoadFailed=true"></script>
+function buildCdnPayload(integrity) {
+  // SRI 完整性校验: CDN 返回内容必须与 skill 内置同版本文件字节一致才执行，
+  // 校验失败触发 error 事件，走既有的降级提示，篡改脚本无法读取页面内仿真数据。
+  return `<script id="report-plotly-library" src="${PLOTLY_CDN_URL}" integrity="${integrity}" crossorigin="anonymous" onerror="window.__reportPlotlyLoadFailed=true"></script>
 <script id="report-plotly-fallback">window.addEventListener('DOMContentLoaded',function(){if(window.Plotly&&!window.__reportPlotlyLoadFailed)return;document.querySelectorAll('[data-plotly-chart]').forEach(function(chart){var notice=document.createElement('p');notice.className='report-plotly-notice';notice.setAttribute('role','alert');notice.textContent='交互图表库未加载，请联网后刷新。';chart.replaceChildren(notice);});});</script>
 ${buildRendererPayload()}`;
 }
@@ -66,7 +68,7 @@ try {
   const source = fs.readFileSync(resolvedInput, 'utf8');
   validateSource(source);
   const markerIndex = source.indexOf(PLOTLY_MARKER);
-  const payload = mode === 'cdn' ? buildCdnPayload() : buildOfflinePayload(plotly);
+  const payload = mode === 'cdn' ? buildCdnPayload(plotlyIntegrityHash()) : buildOfflinePayload(plotly);
   const report = source.slice(0, markerIndex) + payload + source.slice(markerIndex + PLOTLY_MARKER.length);
 
   // 原子写入保证构建失败时不会覆盖已有的可交付报告。
