@@ -50,14 +50,17 @@ def validate_api_url(api_url):
                 continue
             if not (url.path or url.query or url.fragment) and origin == allowed_origin:
                 return
-        elif item and _host_key(item.removeprefix("[").removesuffix("]")) == origin[1]:
-            return
+        elif item:
+            host = _host_key(item.removeprefix("[").removesuffix("]"))
+            if origin == ("https", host, 443):
+                return
     # 仅部署方可在进程环境授权，Agent 不得代为设置；不读取会话输入开关。
     if os.environ.get('CLOUDPSS_ALLOW_MIXED_CONFIG', '').strip().lower() in ('1', 'true', 'yes'):
         print('[WARN] 混源/未授权端点配置已由 CLOUDPSS_ALLOW_MIXED_CONFIG 放行（部署方显式授权）',
               file=sys.stderr)
         return
-    raise ValueError("api_url endpoint 未经部署方授权；请配置 CLOUDPSS_API_URL 或 CLOUDPSS_API_URL_ALLOWLIST")
+    raise ValueError("api_url endpoint 未经部署方授权；请配置 CLOUDPSS_API_URL 或 CLOUDPSS_API_URL_ALLOWLIST"
+                     "（例如 https://api.example:8443；仅主机名等同 HTTPS:443）")
 
 
 def json_value(value):

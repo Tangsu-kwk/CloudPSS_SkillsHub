@@ -4,12 +4,16 @@ from pathlib import Path
 import sys
 
 
+_ORIGINAL_ENV = dict(os.environ)
+_INJECTED: dict[str, str] = {}
+
+
 def configure_cloudpss(config_path=None):
-    selected = config_path or os.environ.get('AUTOMODELING_CONFIG')
+    selected = config_path or _ORIGINAL_ENV.get('AUTOMODELING_CONFIG')
     values = _read_settings(selected) if selected is not None else {}
     env_token = next((token for name in ('CLOUDPSS_TOKEN', 'CLOUDPSS_LOGIN_TOKEN', 'SIMSTUDIO_TOKEN')
-                      if (token := os.environ.get(name, '').strip())), '')
-    env_url = os.environ.get('CLOUDPSS_API_URL', '').strip()
+                      if (token := _ORIGINAL_ENV.get(name, '').strip())), '')
+    env_url = _ORIGINAL_ENV.get('CLOUDPSS_API_URL', '').strip()
     token = env_token or values.get('CLOUDPSS_TOKEN', '').strip()
     url = env_url or values.get('CLOUDPSS_API_URL', '').strip()
     token_source = ('environment' if env_token else 'YAML') if token else None
@@ -21,10 +25,23 @@ def configure_cloudpss(config_path=None):
                              'configure both in the environment or both in YAML')
         print('[WARN] 混源/未授权端点配置已由 CLOUDPSS_ALLOW_MIXED_CONFIG 放行（部署方显式授权）',
               file=sys.stderr)
-    if token:
-        os.environ['CLOUDPSS_TOKEN'] = token
-    if url:
-        os.environ['CLOUDPSS_API_URL'] = url
+    effective = {
+        'CLOUDPSS_TOKEN': (token, token_source),
+        'CLOUDPSS_API_URL': (url, url_source),
+    }
+    # Restore the import-time environment before applying a different config.
+    for name in _INJECTED:
+        if name in _ORIGINAL_ENV:
+            os.environ[name] = _ORIGINAL_ENV[name]
+        else:
+            os.environ.pop(name, None)
+    _INJECTED.clear()
+    for name, (value, source) in effective.items():
+        if source is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+            _INJECTED[name] = source
 
 
 def _read_settings(selected):

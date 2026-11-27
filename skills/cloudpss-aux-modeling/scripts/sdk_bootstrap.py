@@ -1,7 +1,7 @@
-"""Load the bundled wheel from a fresh private extraction on every activation.
+"""Load the bundled wheel from a process-private extraction.
 
 Shared temporary locations and home directories do not prove cache isolation,
-so no cross-process extraction is reused.
+so only the current process reuses its own verified extraction.
 """
 import hashlib
 import io
@@ -16,9 +16,23 @@ import tempfile
 import zipfile
 
 SKILL = Path(__file__).resolve().parents[1]
+_ACTIVE_CACHE: Path | None = None
+
+
+def _loaded_from(module, cache):
+    filename = getattr(module, '__file__', None)
+    return bool(filename and Path(filename).resolve().is_relative_to(cache.resolve()))
 
 
 def activate():
+    global _ACTIVE_CACHE
+    loaded = sys.modules.get('auto_modeling')
+    if _ACTIVE_CACHE is not None and _ACTIVE_CACHE.is_dir():
+        if loaded is None or _loaded_from(loaded, _ACTIVE_CACHE):
+            return _ACTIVE_CACHE
+    if loaded is not None:
+        raise RuntimeError('A different auto_modeling is already loaded; use a fresh Python process')
+    cleanup()
     manifest = json.loads((SKILL / 'assets/sdk/bundle.json').read_text(encoding='utf-8'))
     wheel = SKILL / 'assets/sdk' / manifest['wheel']
     wheel_bytes = wheel.read_bytes()
@@ -27,9 +41,6 @@ def activate():
     # Do not put content from a previously populated directory on sys.path.
     cache = Path(tempfile.mkdtemp(prefix='cloudpss-sdk-'))
     try:
-        loaded = sys.modules.get('auto_modeling')
-        if loaded and not Path(getattr(loaded, '__file__', None) or '').resolve().is_relative_to(cache.resolve()):
-            raise RuntimeError('A different auto_modeling is already loaded; use a fresh Python process')
         with zipfile.ZipFile(io.BytesIO(wheel_bytes)) as archive:
             names = archive.namelist()
             for name in names:
@@ -50,7 +61,24 @@ def activate():
         shutil.rmtree(cache)
         raise
     sys.path.insert(0, str(cache))
+    _ACTIVE_CACHE = cache
     return cache
+
+
+def cleanup():
+    """Discard this module's private extraction and its auto_modeling imports."""
+    global _ACTIVE_CACHE
+    cache = _ACTIVE_CACHE
+    if cache is None:
+        return
+    if cache.is_dir():
+        shutil.rmtree(cache)
+    for name, module in list(sys.modules.items()):
+        if (name == 'auto_modeling' or name.startswith('auto_modeling.')) and _loaded_from(module, cache):
+            del sys.modules[name]
+    if str(cache) in sys.path:
+        sys.path.remove(str(cache))
+    _ACTIVE_CACHE = None
 
 
 def doctor(*, check_auth=False, config=None):
