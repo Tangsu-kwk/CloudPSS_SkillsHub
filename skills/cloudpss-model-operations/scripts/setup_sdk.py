@@ -1,7 +1,9 @@
 """Install bundled SDK dependencies into a task-owned virtual environment."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import venv
@@ -22,9 +24,16 @@ def main():
     python = target / ('Scripts/python.exe' if sys.platform == 'win32' else 'bin/python')
     manifest = json.loads((SKILL / 'assets/sdk/bundle.json').read_text(encoding='utf-8'))
     from sdk_bootstrap import activate
-    activate()  # Verify bundled file before installing it.
-    wheel = str(SKILL / 'assets/sdk' / manifest['wheel']) + ('[job-plots]' if args.plots else '')
-    result = subprocess.run([str(python), '-m', 'pip', 'install', wheel], check=False)
+    cache = activate()
+    try:
+        wheel = cache / Path(manifest['wheel']).name
+        if hashlib.sha256(wheel.read_bytes()).hexdigest() != manifest['sha256']:
+            raise RuntimeError('Private SDK wheel copy checksum mismatch')
+        wheel_arg = str(wheel) + ('[job-plots]' if args.plots else '')
+        result = subprocess.run([str(python), '-m', 'pip', 'install', wheel_arg], check=False)
+    finally:
+        sys.path.remove(str(cache))
+        shutil.rmtree(cache)
     if result.returncode:
         return result.returncode
     print(json.dumps({'status': 'installed', 'python': str(python), 'plots': args.plots}))

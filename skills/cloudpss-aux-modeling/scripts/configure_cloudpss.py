@@ -1,6 +1,7 @@
 """Optional explicit YAML configuration; environment values take priority."""
 import os
 from pathlib import Path
+import sys
 
 
 def configure_cloudpss(config_path=None):
@@ -14,8 +15,12 @@ def configure_cloudpss(config_path=None):
     token_source = ('environment' if env_token else 'YAML') if token else None
     url_source = ('environment' if env_url else 'YAML') if url else None
     if token_source and url_source and token_source != url_source:
-        raise ValueError('Refusing to pair CloudPSS token and api_url from different sources; '
-                         'configure both in the environment or both in YAML')
+        # 仅部署方可在进程环境授权，Agent 不得代为设置；不读取 YAML 开关。
+        if os.environ.get('CLOUDPSS_ALLOW_MIXED_CONFIG', '').strip().lower() not in ('1', 'true', 'yes'):
+            raise ValueError('Refusing to pair CloudPSS token and api_url from different sources; '
+                             'configure both in the environment or both in YAML')
+        print('[WARN] 混源/未授权端点配置已由 CLOUDPSS_ALLOW_MIXED_CONFIG 放行（部署方显式授权）',
+              file=sys.stderr)
     if token:
         os.environ['CLOUDPSS_TOKEN'] = token
     if url:

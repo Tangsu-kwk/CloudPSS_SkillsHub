@@ -22,7 +22,8 @@ def activate():
     manifest = json.loads((SKILL / 'assets/sdk/bundle.json').read_text(encoding='utf-8'))
     wheel = SKILL / 'assets/sdk' / manifest['wheel']
     wheel_bytes = wheel.read_bytes()
-    if hashlib.sha256(wheel_bytes).hexdigest() != manifest['sha256']:
+    digest = hashlib.sha256(wheel_bytes).hexdigest()
+    if digest != manifest['sha256']:
         raise RuntimeError('Bundled SDK checksum mismatch; restore the verified wheel')
     # Do not put content from a previously populated directory on sys.path.
     cache = Path(tempfile.mkdtemp(prefix='cloudpss-sdk-'))
@@ -46,6 +47,13 @@ def activate():
             if (file.is_symlink() or not file.is_file()
                     or hashlib.sha256(file.read_bytes()).digest() != expected[name]):
                 raise RuntimeError(f'Extracted SDK checksum mismatch: {name}')
+        # The original distribution is not an extracted wheel member. Verify
+        # this private install copy separately before it leaves activation.
+        wheel_copy = cache / wheel.name
+        with wheel_copy.open('xb') as file:
+            file.write(wheel_bytes)
+        if hashlib.sha256(wheel_copy.read_bytes()).hexdigest() != digest:
+            raise RuntimeError('Private SDK wheel copy checksum mismatch')
     except BaseException:
         shutil.rmtree(cache)
         raise
@@ -71,10 +79,26 @@ def doctor(*, check_auth=False, config=None):
             issues.append(name + ' version differs from validated ' + expected)
     if sys.version_info < (3, 12):
         issues.append('Python >=3.12 is required')
+    import_ok, import_error = None, None
+    if not issues:
+        try:
+            import auto_modeling  # noqa: F401
+            import_ok = True
+        except Exception as exc:
+            import_ok = False
+            import_error = f'{type(exc).__name__}: {exc}'
+            # An imported dependency may include its environment in an error.
+            for name in ('CLOUDPSS_TOKEN', 'CLOUDPSS_LOGIN_TOKEN', 'SIMSTUDIO_TOKEN', 'CLOUDPSS_API_URL'):
+                secret = os.environ.get(name, '').strip()
+                if secret:
+                    import_error = import_error.replace(secret, '[REDACTED]')
+            issues.append(f'auto_modeling 无法导入: {import_error}')
     auth = bool(os.environ.get('CLOUDPSS_TOKEN', '').strip()) if check_auth else None
     if check_auth and not auth:
         issues.append('CLOUDPSS_TOKEN is missing; inject credentials or provide --config')
-    return {'status': 'issues' if issues else 'ok', 'python': sys.executable,
+    status = 'degraded' if import_ok is False else ('issues' if issues else 'ok')
+    return {'status': status, 'python': sys.executable, 'sys_path': list(sys.path),
+            'import_ok': import_ok, 'import_error': import_error,
             'skill': str(SKILL), 'sdk_runtime': str(cache), 'dependencies': versions,
             'token_configured': auth, 'authentication_verified_online': False,
             'node_available': bool(os.environ.get('AUTOMODELING_NODE') or shutil.which('node')),
