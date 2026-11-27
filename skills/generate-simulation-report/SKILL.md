@@ -56,10 +56,10 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 
 ## 产物边界
 
-- 用户指定的输出位置约束过程文件、证据与中间产物的组织；**最终 HTML 交付入口固定为 `.report-build/report.html`**。用户明确要求其他交付位置时，在 `.report-build/` 完成构建与预览验收后把最终 HTML 复制过去，并在最终回复注明实际路径；预览服务始终只绑定 `.report-build/`。
-- `.report-build/report.html` 是唯一最终交付入口；最终回复只引导用户打开该文件。
+- 用户指定的输出位置约束过程文件、证据与中间产物的组织。
+- **最终 HTML 交付入口固定为 `.report-build/report.html`**：构建、预览验收与最终回复引导统一使用该路径。用户要求把报告放到其他位置时，如实告知交付入口固定在构建目录的 `report.html`，不另建副本——避免出现两份可能不一致的"最终报告"。
+- `.report-build/` 是内部中间构建目录，可保留用于调试和重构建；用户直接打开的是其中的 `report.html` 文件，而非目录本身。
 - `simulation-results/` 是报告证据数据目录，可保留在用户工作区用于追溯。
-- `.report-build/` 是内部中间构建目录，可保留用于调试和重构建，不作为交付入口，不要求用户打开。
 
 ## 图表与数据规则
 
