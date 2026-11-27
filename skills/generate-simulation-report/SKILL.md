@@ -56,7 +56,8 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 
 ## 产物边界
 
-- 最终交付入口只有 `.report-build/report.html`；最终回复只引导用户打开该文件。
+- 用户指定的输出位置约束过程文件、证据与中间产物的组织；**最终 HTML 交付入口固定为 `.report-build/report.html`**。用户明确要求其他交付位置时，在 `.report-build/` 完成构建与预览验收后把最终 HTML 复制过去，并在最终回复注明实际路径；预览服务始终只绑定 `.report-build/`。
+- `.report-build/report.html` 是唯一最终交付入口；最终回复只引导用户打开该文件。
 - `simulation-results/` 是报告证据数据目录，可保留在用户工作区用于追溯。
 - `.report-build/` 是内部中间构建目录，可保留用于调试和重构建，不作为交付入口，不要求用户打开。
 
@@ -67,7 +68,7 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 - 仅在用户明确要求离线交付时内嵌 skill 自带的同版本 Plotly；最终 HTML 无外部依赖。
 - 完整原始数据用于统计、极值和结论；稠密时序的绘图数据按显示密度自适应降采样，保留首尾、局部极值和突变特征。数值精度应适合量级。
 - 文件体积或绘图点数过大时，构建日志给出预警并建议进一步降采样；报告正文不出现构建过程信息。
-- 图表数据只能写入 `<script id="report-chart-specs" type="application/json">`；清单项使用 `id`、非空 `data` 数组及可选对象 `layout`、`config`。序列化 JSON 时必须转义 `</script>`，不得让数据提前闭合脚本标签。
+- 图表数据只能写入 `<script id="report-chart-specs" type="application/json">`；清单项使用 `id`、非空 `data` 数组及可选对象 `layout`、`config`。JSON 序列化完成后，必须把序列化文本中的**所有 `<` 统一替换为 `\u003c`** 再写入 script 标签——不要只对 `</script>` 做字面替换：大小写变体（`</SCRIPT>`）或带空白的结束标签（`</script >`）同样会提前闭合数据块，统一 `\u003c` 还能一并消除 `<!--` 的解析歧义。
 - 外部证据文本（CSV/JSON/Markdown 的字段值、文件名、单位、结论语句）写入正文、表格或 HTML 属性前，必须按上下文转义：文本节点转义 `& < >`，属性值额外转义引号；禁止把外部字符串原样拼接进标签、属性或脚本源码，防止证据内容被浏览器当作页面代码执行。
 
 ## 护栏
