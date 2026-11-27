@@ -20,7 +20,7 @@ activate()
 from auto_modeling.configs import list_configs
 from auto_modeling.job_results import fetch_job_info
 from auto_modeling.job_runner import prepare_run_job
-from official_model_check import check_official, require_official_check
+from official_model_check import OfficialCheckError, check_official, require_official_check
 from preflight_checks import check as check_preflight
 from layout_audit import audit as audit_layout
 from auto_modeling.job_submission import submit_job_plan, JobSubmissionError
@@ -63,6 +63,8 @@ def main(argv=None):
                         help='JSON: {"scenarios":[{"name","patches":{"<cell>":{"<param>":value}}}]}')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--coverage-review', metavar='TEXT',
+                        help='Review conclusion for uncovered official model checks')
     args = parser.parse_args(argv)
 
     spec = load(args.spec)
@@ -170,7 +172,7 @@ def main(argv=None):
             entry['layout'] = audit_layout(document)
             entry['official_check'] = check_official(
                 model, config_index=config_item['index'], job_index=job_item['index'])
-            require_official_check(entry['official_check'])
+            require_official_check(entry['official_check'], coverage_review=args.coverage_review)
             if entry['preflight']['status'] != 'clean':
                 raise ValueError('Preflight checks found errors; inspect batch manifest')
             if entry['layout']['missing_positions']:
@@ -179,7 +181,11 @@ def main(argv=None):
             problems = getattr(exc, 'problems', None)
             entry['status'] = 'failed'
             entry['stage'] = 'preflight'
-            entry['error'] = {'type': type(exc).__name__, 'message': str(exc)[:400],
+            message = str(exc)
+            if (isinstance(exc, OfficialCheckError) and exc.report.get('status') in ('partial', 'not_applicable')
+                    and not (args.coverage_review or '').strip()):
+                message = '请复核未覆盖项后以 --coverage-review "<结论>" 重新执行；' + message
+            entry['error'] = {'type': type(exc).__name__, 'message': message[:400],
                               'problems': problems}
             entry['finished_at'] = now()
             write(manifest_path, manifest)

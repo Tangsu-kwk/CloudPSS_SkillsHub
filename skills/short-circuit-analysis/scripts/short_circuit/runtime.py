@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from cloudpss import Model, setToken
 
@@ -35,9 +36,13 @@ def _safe_path_part(value: str, fallback: str) -> str:
 
 def _task_id_from_job(job: Any) -> str:
     task_id = str(getattr(job, "id", "") or "").strip()
-    if not task_id:
-        raise RuntimeError("CloudPSS EMT job did not return an id")
-    return task_id
+    try:
+        normalized = str(UUID(task_id))
+    except ValueError:
+        raise ValueError("Provide the CloudPSS task UUID") from None
+    if normalized != task_id:
+        raise ValueError("Provide the CloudPSS task UUID")
+    return normalized
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

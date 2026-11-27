@@ -18,7 +18,7 @@ from auto_modeling.job_results import JobResults
 from auto_modeling.job_runner import prepare_run_job
 from auto_modeling.job_submission import submit_job_plan
 from auto_modeling.plot_results import plot_figure
-from official_model_check import check_official, require_official_check
+from official_model_check import OfficialCheckError, check_official, require_official_check
 from preflight_checks import check as check_preflight
 from layout_audit import audit as audit_layout
 
@@ -46,10 +46,10 @@ def summarize(report):
                        for level in ('error', 'warning', 'info')}}
 
 
-def require_calculable(report, *, strict_layout=False):
+def require_calculable(report, *, strict_layout=False, coverage_review=None):
     if report['pending_groups'] or any(p['level'] == 'error' for p in report['problems']):
         raise ValueError('Project check has errors or pending inputs; inspect check.json before proceeding')
-    require_official_check(report['official_check'])
+    require_official_check(report['official_check'], coverage_review=coverage_review)
     if report['preflight']['status'] != 'clean':
         raise ValueError('Preflight checks found errors; inspect preflight.json before proceeding')
     if report['layout']['missing_positions']:
@@ -104,6 +104,9 @@ def main(argv=None):
         if name in ('check', 'save', 'run'):
             item.add_argument('--strict-layout', action='store_true',
                               help='Treat overlapping symbol boxes as a failure')
+        if name in ('save', 'run'):
+            item.add_argument('--coverage-review', metavar='TEXT',
+                              help='Review conclusion for uncovered official model checks')
         if name == 'save':
             item.add_argument('--rid', required=True)
             item.add_argument('--overwrite', action='store_true', help='Only for an already authorized overwrite')
@@ -146,10 +149,12 @@ def main(argv=None):
             return 0
         if args.command == 'save':
             report = check(model)
-            write_json(args.out / 'check.json', report)
-            write_json(args.out / 'preflight.json', report['preflight'])
-            write_json(args.out / 'layout.json', report['layout'])
-            require_calculable(report, strict_layout=args.strict_layout)
+            try:
+                require_calculable(report, strict_layout=args.strict_layout, coverage_review=args.coverage_review)
+            finally:
+                write_json(args.out / 'check.json', report)
+                write_json(args.out / 'preflight.json', report['preflight'])
+                write_json(args.out / 'layout.json', report['layout'])
             exists = project_exists(args.rid)
             if exists and not args.overwrite:
                 raise ValueError('Target RID exists; choose a new RID or use --overwrite for an authorized replacement')
@@ -177,11 +182,13 @@ def main(argv=None):
         # Preparing uses the same checked SDK path as ProjectSession.run_job.
         plan = prepare_run_job(model, args.config_index, args.job_index)
         report = check(model, config_index=args.config_index, job_index=args.job_index)
-        write_json(args.out / 'check.json', report)
-        write_json(args.out / 'official_check.json', report['official_check'])
-        write_json(args.out / 'preflight.json', report['preflight'])
-        write_json(args.out / 'layout.json', report['layout'])
-        require_calculable(report, strict_layout=args.strict_layout)
+        try:
+            require_calculable(report, strict_layout=args.strict_layout, coverage_review=args.coverage_review)
+        finally:
+            write_json(args.out / 'check.json', report)
+            write_json(args.out / 'official_check.json', report['official_check'])
+            write_json(args.out / 'preflight.json', report['preflight'])
+            write_json(args.out / 'layout.json', report['layout'])
         write_json(args.out / 'submission_plan.json', plan)
         results = JobResults()
         job_id = submit_job_plan(plan, session=results, start_receiver=False)
@@ -203,6 +210,9 @@ def main(argv=None):
         if isinstance(exc, (ValueError, FileNotFoundError, ImportError)):
             import os
             message = str(exc)
+            if (isinstance(exc, OfficialCheckError) and exc.report.get('status') in ('partial', 'not_applicable')
+                    and not (getattr(args, 'coverage_review', None) or '').strip()):
+                message = '请复核未覆盖项后以 --coverage-review "<结论>" 重新执行；' + message
             token = os.environ.get('CLOUDPSS_TOKEN')
             failure['message'] = message.replace(token, '[REDACTED]') if token else message
         if results is not None and args.command != 'check':

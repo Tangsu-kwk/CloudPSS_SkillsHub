@@ -24,7 +24,7 @@ from auto_modeling.job_submission import JobSubmissionError, submit_job_plan
 from auto_modeling.project_reads import list_jobs
 from auto_modeling.project_session import open_project
 from scenario_select import resolve
-from official_model_check import check_official, require_official_check
+from official_model_check import OfficialCheckError, check_official, require_official_check
 from preflight_checks import check as check_preflight
 from layout_audit import audit as audit_layout
 
@@ -57,6 +57,8 @@ def main(argv=None):
     parser.add_argument('--job', required=True, help='User wording for the calculation scheme')
     parser.add_argument('--add-config', help='Append this extra in-memory parameter scheme first')
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--coverage-review', metavar='TEXT',
+                        help='Review conclusion for uncovered official model checks')
     args = parser.parse_args(argv)
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -92,14 +94,18 @@ def main(argv=None):
         receipt['layout'] = audit_layout(document)
         receipt['official_check'] = check_official(
             model, config_index=config_item['index'], job_index=job_item['index'])
-        require_official_check(receipt['official_check'])
+        require_official_check(receipt['official_check'], coverage_review=args.coverage_review)
         if receipt['preflight']['status'] != 'clean':
             raise ValueError('Preflight checks found errors; inspect receipt')
         if receipt['layout']['missing_positions']:
             raise ValueError('Layout audit found components without a position; inspect receipt')
     except Exception as exc:
+        message = str(exc)
+        if (isinstance(exc, OfficialCheckError) and exc.report.get('status') in ('partial', 'not_applicable')
+                and not (args.coverage_review or '').strip()):
+            message = '请复核未覆盖项后以 --coverage-review "<结论>" 重新执行；' + message
         receipt.update({'status': 'preflight_failed', 'stage': 'preflight',
-                        'error': {'type': type(exc).__name__, 'message': str(exc)[:400],
+                        'error': {'type': type(exc).__name__, 'message': message[:400],
                                   'problems': getattr(exc, 'problems', None)},
                         'mutations_sent': list(MUTATIONS)})
         (args.out / 'receipt.json').write_text(json.dumps(receipt, ensure_ascii=False,

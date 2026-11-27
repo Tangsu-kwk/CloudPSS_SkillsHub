@@ -28,16 +28,17 @@ function collectIssues(mode, content, plotly) {
   const blocks = collectScriptBlocks(content);
   const { visibleContent, libraryContent } = removeLibraryBlock(content, blocks);
   const markup = removeBlocks(content, blocks);
+  const visibleMarkup = markup.replace(/<!--[\s\S]*?-->/g, '');
   const scriptOpenCount = (content.match(/<script\b/gi) || []).length;
   const scriptCloseCount = (content.match(/<\/script\s*>/gi) || []).length;
 
   if (!/<html\b/i.test(content)) issues.push('Missing HTML root element.');
   if (!/<title>[^<]+<\/title>/i.test(content)) issues.push('Missing or empty document title.');
   if (content.includes(PLOTLY_MARKER)) issues.push('Unreplaced REPORT_PLOTLY marker found.');
-  if (/\{\{[A-Z0-9_]+\}\}/.test(content)) issues.push('Unreplaced template placeholder found.');
+  if (/\{\{[A-Z0-9_]+\}\}/.test(visibleMarkup)) issues.push('Unreplaced template placeholder found.');
   // 仅拦截命令调用形态的生成器语法; 正文/图表数据里被正确转义的普通词汇
   // (如证据文本提及该命令名)不应阻断交付——裸词匹配会产生合法证据误报。
-  if (/(?:\bpowershell(?:\.exe)?\s+-|\bpwsh\b\s+-\w|-join\s+[('"]|ForEach-Object\s*\{|\|\s*ConvertTo-Json\b)/i.test(visibleContent)) issues.push('Generator syntax appears in the report.');
+  if (/(?:\bpowershell(?:\.exe)?\s+-|\bpwsh\b\s+-\w|-join\s+[('"]|ForEach-Object\s*\{|\|\s*ConvertTo-Json\b)/i.test(visibleMarkup)) issues.push('Generator syntax appears in the report.');
   if (visibleContent.includes('\uFFFD')) issues.push('Replacement-character encoding issue found outside the Plotly library.');
   if (/<section(?![^>]*class=["'][^"']*chart)[^>]*>\s*<\/section>/i.test(visibleContent)) issues.push('Empty section found.');
   if (scriptOpenCount !== scriptCloseCount) issues.push('Script opening and closing tag counts differ.');
