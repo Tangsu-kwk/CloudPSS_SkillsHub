@@ -15,8 +15,8 @@ node scripts/check-environment.js
 默认构建轻量在线报告：
 
 ```bash
-node scripts/build-report.js --mode cdn .report-build/report.source.html report.html
-node scripts/check-report.js --mode cdn report.html
+node scripts/build-report.js --mode cdn .report-build/report.source.html .report-build/report.html
+node scripts/check-report.js --mode cdn .report-build/report.html
 ```
 
 - 最终 HTML 引用固定版本 `https://cdn.plot.ly/plotly-2.35.2.min.js`。
@@ -28,8 +28,8 @@ node scripts/check-report.js --mode cdn report.html
 仅当用户明确要求断网可用时构建：
 
 ```bash
-node scripts/build-report.js --mode offline .report-build/report.source.html report.html
-node scripts/check-report.js --mode offline report.html
+node scripts/build-report.js --mode offline .report-build/report.source.html .report-build/report.html
+node scripts/check-report.js --mode offline .report-build/report.html
 ```
 
 - 最终 HTML 内嵌固定版本 Plotly，不引用外部脚本。
@@ -47,6 +47,6 @@ node scripts/check-report.js --mode offline report.html
 
 ## 用户可见产物
 
-- `report.html` 是唯一最终交付入口。
+- `.report-build/report.html` 是唯一最终交付入口。
 - `simulation-results/` 是证据数据目录，用于报告来源追溯。
 - `.report-build/` 是内部中间构建目录，可保留用于调试和重构建，不需要用户打开。

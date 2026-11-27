@@ -13,7 +13,7 @@ node scripts/check-environment.js
 构建后运行：
 
 ```bash
-node scripts/check-report.js --mode cdn report.html
+node scripts/check-report.js --mode cdn .report-build/report.html
 ```
 
 用户明确要求离线交付时，将 `cdn` 替换为 `offline`。
@@ -31,8 +31,8 @@ node scripts/check-report.js --mode cdn report.html
 
 最终交付前必须先通过本地 HTTP server 访问最终 HTML，再在浏览器中新开标签页验收：
 
-- 启动本地 HTTP 服务器服务 `report.html` 所在目录。
-- 在浏览器中新开标签页打开 `http://localhost:<port>/report.html`。
+- 启动本地 HTTP 服务器服务 `.report-build/` 目录（只绑定 127.0.0.1）。
+- 在浏览器中新开标签页打开 `http://127.0.0.1:<port>/.report-build/report.html`。
 - 确认 `window.Plotly` 已加载；CDN 模式应可访问网络。
 - 确认每个 `[data-plotly-chart]` 容器生成 Plotly 的 SVG、Canvas 或图例节点，且未显示图表库、配置或渲染失败提示。
 - 确认页面正文、图表和关键结果可见。
@@ -41,4 +41,4 @@ node scripts/check-report.js --mode cdn report.html
 
 缺少浏览器能力时，交付说明中只陈述已完成静态质检，不得声称已完成最终实渲染验收。
 
-最终回复只将 `report.html` 作为交付入口；`simulation-results/` 可说明为证据数据目录，`.report-build/` 不作为用户需要打开的文件。
+最终回复只将 `.report-build/report.html` 作为交付入口；`simulation-results/` 可说明为证据数据目录，`.report-build/` 不作为用户需要打开的文件。

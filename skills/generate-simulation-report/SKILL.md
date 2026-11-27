@@ -50,13 +50,13 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 3. 读取 `references/waveform-csv-contract.md`、`references/report-assembly.md` 和 `references/visualization-and-writing.md` 中相关说明。以本任务的接线、通道、波形和指标组织正文。更换任务时，重新从该任务的证据提取结论。
 4. 运行 `node scripts/check-environment.js` 检查构建环境。
 5. 生成 `.report-build/report.source.html`，包含正文、样式、图表容器、唯一的 `report-chart-specs` JSON 清单和一个 `<!-- REPORT_PLOTLY -->` 标记。图表容器 ID 与清单一一对应，渲染器由构建器注入。
-6. 用 `node scripts/build-report.js --mode cdn .report-build/report.source.html report.html` 构建。用户要求离线时用 `--mode offline`。
-7. 运行 `node scripts/check-report.js --mode <cdn|offline> report.html`。已有短路分析的中文或英文报告按[短路分析产物交接](references/data-sources.md#短路分析产物交接)验证原指标表，再核对正文结论和图表与该任务证据一致。
-8. 用本地 HTTP 服务在浏览器新标签页打开最终 HTML，确认正文、图表和交互正常。按静态检查和实际渲染结果报告交付状态。
+6. 用 `node scripts/build-report.js --mode cdn .report-build/report.source.html .report-build/report.html` 构建。用户要求离线时用 `--mode offline`。
+7. 运行 `node scripts/check-report.js --mode <cdn|offline> .report-build/report.html`。已有短路分析的中文或英文报告按[短路分析产物交接](references/data-sources.md#短路分析产物交接)验证原指标表，再核对正文结论和图表与该任务证据一致。
+8. 用本地 HTTP 服务在浏览器新标签页打开最终 HTML：服务 `.report-build/` 目录并只绑定 127.0.0.1。确认正文、图表和交互正常。按静态检查和实际渲染结果报告交付状态。
 
 ## 产物边界
 
-- 最终交付入口只有 `report.html`；最终回复只引导用户打开该文件。
+- 最终交付入口只有 `.report-build/report.html`；最终回复只引导用户打开该文件。
 - `simulation-results/` 是报告证据数据目录，可保留在用户工作区用于追溯。
 - `.report-build/` 是内部中间构建目录，可保留用于调试和重构建，不作为交付入口，不要求用户打开。
 
@@ -79,7 +79,7 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 - 不得将 CloudPSS Token 写入文件、报告、命令输出、命令行参数或最终回复。
 - 现象说明按“数据表现 -> 特征提取 -> 有限解释”组织；物理原因仅由主报告、配置或明确证据支持后写入。
 - 不得忽略构建或质检失败并宣称交付成功。
-- 本地预览 HTTP 服务只绑定回环地址（127.0.0.1），且只服务最终报告所在目录；不得绑定 0.0.0.0 或把工作区根目录、`simulation-results/` 等含原始数据的目录发布为可访问路径。
+- 本地预览 HTTP 服务只绑定回环地址（127.0.0.1），服务根目录限定为构建目录 `.report-build/`（仅含交付产物与构建中间文件）；不得绑定 0.0.0.0，不得把工作区根目录或 `simulation-results/` 等含原始数据的目录发布为可访问路径。
 
 ## 资源索引
 
