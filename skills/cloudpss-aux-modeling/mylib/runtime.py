@@ -6,7 +6,6 @@ import copy
 import hashlib
 import json
 import math
-import re
 import time
 import uuid
 from pathlib import Path
@@ -15,7 +14,7 @@ from typing import Any
 
 from .PSAToolbox import PSAToolbox
 from .CaseEditToolbox import merge_fields
-from .sdk_adapter import json_value, validate_rid
+from .sdk_adapter import json_value, validate_api_url, validate_rid
 
 SUPPORTED_OPERATIONS = {"initialize", "list_templates", "get_template_schema", "query",
                         "create", "update", "delete", "create_canvas", "delete_edges",
@@ -24,32 +23,6 @@ SUPPORTED_OPERATIONS |= {"query_emt_jobs", "query_emt_outputs", "configure_chann
 CONFIRMATIONS = {"execute", "confirmed", "confirm", "确认执行", "确认"}
 PREVIEW_TTL = 1800
 OUTPUT_LIMIT = 12000
-
-
-_PRIVATE_HOST = re.compile(
-    r"^(localhost|.*\.localhost|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-    r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$")
-
-
-def _require_trusted_api_host(hostname: str) -> None:
-    """会话通道提供的 api_url 会与环境令牌组合使用; 令牌只能发往受信主机。
-
-    默认信任: cloudpss.net 及其子域、私有网段、localhost。其他主机须由部署方通过
-    CLOUDPSS_API_URL_ALLOWLIST(逗号分隔主机后缀)显式放行, 防止令牌外发到任意主机。
-    """
-    import os
-    host = (hostname or "").lower().rstrip(".")
-    if not host:
-        raise ValueError("api_url host is required")
-    if host == "cloudpss.net" or host.endswith(".cloudpss.net") or _PRIVATE_HOST.match(host):
-        return
-    allowlist = [h.strip().lower() for h in
-                 os.environ.get("CLOUDPSS_API_URL_ALLOWLIST", "").split(",") if h.strip()]
-    if any(host == h or host.endswith("." + h) for h in allowlist):
-        return
-    raise ValueError(
-        f"api_url host {host!r} is not a trusted CloudPSS API host; "
-        "deployments must allow it via CLOUDPSS_API_URL_ALLOWLIST")
 
 
 def validate_session_inputs(supplied, session, request):
@@ -61,11 +34,7 @@ def validate_session_inputs(supplied, session, request):
     if "original_rid" in supplied:
         validate_rid(supplied["original_rid"])
     if "api_url" in supplied:
-        from urllib.parse import urlsplit
-        url = urlsplit(supplied["api_url"])
-        if url.scheme not in {"http", "https"} or not url.netloc or url.username or url.password:
-            raise ValueError("api_url must be an HTTP(S) URL without credentials")
-        _require_trusted_api_host(url.hostname)
+        validate_api_url(supplied["api_url"])
     reset = request.get("operation") == "initialize" and request.get("options", {}).get("reset") is True
     if session.get("toolbox") is not None or session.get("memory_model") is not None:
         for key, value in supplied.items():

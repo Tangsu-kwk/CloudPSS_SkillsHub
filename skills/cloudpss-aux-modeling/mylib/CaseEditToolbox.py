@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from .sdk_adapter import SDKAdapter, json_value, validate_rid
+from .sdk_adapter import SDKAdapter, json_value, validate_api_url, validate_rid
 
 
 def source(value):
@@ -42,7 +42,7 @@ class CaseEditToolbox:
     def __init__(self, *, adapter=None):
         self.adapter = adapter or SDKAdapter()
         self.config = {"token": os.getenv("SIMSTUDIO_TOKEN"),
-                       "apiURL": os.getenv("CLOUDPSS_API_URL", "https://cloudpss.net/"),
+                       "apiURL": os.getenv("CLOUDPSS_API_URL") or None,
                        "username": None, "model": None, "comLibName": "saSource.json",
                        "deleteEdges": True, "iGraph": False}
         self.project = None
@@ -57,6 +57,8 @@ class CaseEditToolbox:
 
     def setConfig(self, token=None, apiURL=None, username=None, model=None,
                   comLibName=None, iGraph=None):
+        if apiURL is not None:
+            validate_api_url(apiURL)
         values = dict(token=token, apiURL=apiURL, username=username, model=model,
                       comLibName=comLibName, iGraph=iGraph)
         for key, value in values.items():
@@ -69,7 +71,13 @@ class CaseEditToolbox:
                 elif not isinstance(value, str) or not value.strip():
                     raise ValueError(f"{key} must be a nonempty string")
                 self.config[key] = value
-        self.adapter.configure(self.config["token"], self.config["apiURL"])
+        self._configure_adapter()
+
+    def _configure_adapter(self):
+        api_url = self.config["apiURL"]
+        if api_url is not None:
+            validate_api_url(api_url)
+        self.adapter.configure(self.config["token"], api_url)
 
     def loadComponentLibrary(self):
         path = Path(self.config["comLibName"])
@@ -80,7 +88,7 @@ class CaseEditToolbox:
 
     def setInitialConditions(self, *, project=None):
         """Optional project injection reuses a host model without fetching again."""
-        self.adapter.configure(self.config["token"], self.config["apiURL"])
+        self._configure_adapter()
         rid = f"model/{self.config['username']}/{self.config['model']}"
         self.project = project if project is not None else self.adapter.fetch(validate_rid(rid))
         self.original_rid = getattr(self.project, "rid", None) or rid

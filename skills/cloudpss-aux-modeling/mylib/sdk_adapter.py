@@ -3,6 +3,55 @@
 import copy
 import os
 import re
+from urllib.parse import urlsplit
+
+
+_HTTP_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _host_key(hostname):
+    return (hostname or "").lower().removesuffix(".")
+
+
+def _api_origin(api_url):
+    try:
+        url = urlsplit(api_url)
+        host = _host_key(url.hostname)
+        if (url.scheme in _HTTP_DEFAULT_PORTS and host and url.username is None
+                and url.password is None and not re.search(r"[\s\\]", url.netloc)):
+            port = url.port
+            return url, (url.scheme, host, _HTTP_DEFAULT_PORTS[url.scheme] if port is None else port)
+    except ValueError:
+        pass
+    raise ValueError("api_url must be an HTTP(S) URL without credentials")
+
+
+def validate_api_url(api_url):
+    """Use the same endpoint boundary for sessions and direct SDK configuration."""
+    if not isinstance(api_url, str) or not api_url.strip():
+        raise ValueError("api_url must be an HTTP(S) URL without credentials")
+    _, origin = _api_origin(api_url)
+    configured = os.environ.get("CLOUDPSS_API_URL", "").strip()
+    if configured:
+        try:
+            _, configured_origin = _api_origin(configured)
+        except ValueError:
+            pass
+        else:
+            if origin == configured_origin:
+                return
+    for item in os.environ.get("CLOUDPSS_API_URL_ALLOWLIST", "").split(","):
+        item = item.strip()
+        if "://" in item:
+            try:
+                url, allowed_origin = _api_origin(item)
+            except ValueError:
+                continue
+            if not (url.path or url.query or url.fragment) and origin == allowed_origin:
+                return
+        elif item and _host_key(item.removeprefix("[").removesuffix("]")) == origin[1]:
+            return
+    raise ValueError("api_url endpoint 未经部署方授权；请配置 CLOUDPSS_API_URL 或 CLOUDPSS_API_URL_ALLOWLIST")
 
 
 def json_value(value):
@@ -25,8 +74,10 @@ def validate_rid(rid):
 
 class SDKAdapter:
     def configure(self, token=None, api_url=None):
+        if api_url is not None:
+            validate_api_url(api_url)
         import cloudpss
-        if api_url:
+        if api_url is not None:
             os.environ["CLOUDPSS_API_URL"] = api_url
         if token:
             cloudpss.setToken(token.strip())

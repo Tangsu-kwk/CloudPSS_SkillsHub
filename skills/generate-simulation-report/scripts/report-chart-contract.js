@@ -27,12 +27,19 @@ function removeBlocks(content, blocks) {
 
 function collectChartContainerIds(markup) {
   const ids = [];
-  // 无值属性(data-plotly-chart>)不能用普通分组消耗 '>'——否则匹配会吞掉
-  // 本标签的结束括号并跨到下一个标签, 造成容器漏计/误配对。用 lookahead 断言。
-  const pattern = /<[a-z][^>]*\bdata-plotly-chart(?=[\s=/>])[^>]*>/gi;
+  const pattern = /<([a-z][a-z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
   let match;
   while ((match = pattern.exec(markup)) !== null) {
-    ids.push(attributeValue(match[0], 'id'));
+    const attributes = new Map();
+    const tokens = /([^\s=\/"'<>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s>]+))?/g;
+    for (const [, name, value] of match[2].matchAll(tokens)) {
+      const key = name.toLowerCase();
+      if (!attributes.has(key)) {
+        const quoted = value?.startsWith('"') || value?.startsWith("'");
+        attributes.set(key, quoted ? value.slice(1, -1) : value);
+      }
+    }
+    if (attributes.has('data-plotly-chart')) ids.push(attributes.get('id') || null);
   }
   return ids;
 }

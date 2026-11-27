@@ -1,5 +1,10 @@
-"""Load the bundled wheel without depending on the original development tree."""
+"""Load the bundled wheel from a fresh private extraction on every activation.
+
+Shared temporary locations and home directories do not prove cache isolation,
+so no cross-process extraction is reused.
+"""
 import hashlib
+import io
 import importlib.metadata
 import importlib.util
 import json
@@ -16,42 +21,34 @@ SKILL = Path(__file__).resolve().parents[1]
 def activate():
     manifest = json.loads((SKILL / 'assets/sdk/bundle.json').read_text(encoding='utf-8'))
     wheel = SKILL / 'assets/sdk' / manifest['wheel']
-    digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
-    if digest != manifest['sha256']:
+    wheel_bytes = wheel.read_bytes()
+    if hashlib.sha256(wheel_bytes).hexdigest() != manifest['sha256']:
         raise RuntimeError('Bundled SDK checksum mismatch; restore the verified wheel')
-    # 缓存目录必须用户私有: 共享临时目录(如 POSIX /tmp)可被其他本地账号预置,
-    # 仅凭 .ready 存在就把缓存加入 sys.path 首位, 会让未校验代码获得导入优先权。
-    # 改用用户主目录(多用户系统上 ACL 隔离), 并在命中前校验 .ready 内容与 wheel 摘要一致。
-    cache = Path.home() / '.cache' / 'cloudpss-shitu-sdk' / digest
-    ready = cache / '.ready'
-    if ready.is_file():
-        try:
-            ready_ok = ready.read_text(encoding='ascii').strip() == digest
-        except (OSError, UnicodeDecodeError):
-            ready_ok = False
-        if not ready_ok:
-            shutil.rmtree(cache, ignore_errors=True)  # 缓存损坏/被篡改: 重建
-    if not ready.is_file():
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        staging = Path(tempfile.mkdtemp(prefix='extract-', dir=cache.parent))
-        try:
-            with zipfile.ZipFile(wheel) as archive:
-                for name in archive.namelist():
-                    if not (staging / name).resolve().is_relative_to(staging.resolve()):
-                        raise ValueError('Invalid wheel member path')
-                archive.extractall(staging)
-            (staging / '.ready').write_text(digest, encoding='ascii')
-            try:
-                staging.rename(cache)
-            except OSError:
-                if not ready.is_file():
-                    raise
-        finally:
-            if staging.exists():
-                shutil.rmtree(staging)
-    loaded = sys.modules.get('auto_modeling')
-    if loaded and not Path(loaded.__file__).resolve().is_relative_to(cache.resolve()):
-        raise RuntimeError('A different auto_modeling is already loaded; use a fresh Python process')
+    # Do not put content from a previously populated directory on sys.path.
+    cache = Path(tempfile.mkdtemp(prefix='cloudpss-sdk-'))
+    try:
+        loaded = sys.modules.get('auto_modeling')
+        if loaded and not Path(getattr(loaded, '__file__', None) or '').resolve().is_relative_to(cache.resolve()):
+            raise RuntimeError('A different auto_modeling is already loaded; use a fresh Python process')
+        with zipfile.ZipFile(io.BytesIO(wheel_bytes)) as archive:
+            names = archive.namelist()
+            for name in names:
+                if not (cache / name).resolve().is_relative_to(cache.resolve()):
+                    raise ValueError('Invalid wheel member path')
+            members = sorted(name for name in names if not name.endswith('/'))
+            expected = {name: hashlib.sha256(archive.read(name)).digest() for name in members}
+            archive.extractall(cache)
+        extracted = {file.relative_to(cache).as_posix() for file in cache.rglob('*') if not file.is_dir()}
+        if extracted != set(expected):
+            raise RuntimeError('Extracted SDK file list does not match the verified wheel')
+        for name in members:
+            file = cache / name
+            if (file.is_symlink() or not file.is_file()
+                    or hashlib.sha256(file.read_bytes()).digest() != expected[name]):
+                raise RuntimeError(f'Extracted SDK checksum mismatch: {name}')
+    except BaseException:
+        shutil.rmtree(cache)
+        raise
     sys.path.insert(0, str(cache))
     return cache
 

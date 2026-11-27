@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse
+from contextlib import contextmanager
 import csv
 import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 import cloudpss
@@ -22,22 +24,48 @@ def output_directory(workspace: Path, result_rid: str) -> Path:
         raise ValueError("result_rid 格式无效")
 
     workspace = workspace.resolve()
-    root = (workspace / OUTPUT_ROOT).resolve()
-    output = (workspace / OUTPUT_ROOT / result_rid).resolve()
-    # result_rid 会参与路径拼接，必须确认最终目录仍在当前工作区内。
-    if workspace not in output.parents:
+    root_meta = workspace / OUTPUT_ROOT
+    if root_meta.is_symlink() or root_meta.resolve() != root_meta:
+        raise ValueError("simulation-results/ 根目录不得重定向")
+    output = workspace / OUTPUT_ROOT / result_rid
+    if output.is_symlink():
+        raise ValueError("任务输出目录不得为符号链接")
+    resolved = output.resolve()
+    if workspace not in resolved.parents:
         raise ValueError("输出目录必须位于当前工作区")
-    # 进一步限定: 解析符号链接后必须是 simulation-results/ 的直接子目录——
-    # 防止工作区内的符号链接(如指向 .report-build/)把原始结果写进预览服务目录。
-    if output.parent != root:
+    if resolved.parent != root_meta:
         raise ValueError("输出目录必须是 simulation-results/ 的直接子目录")
+    if resolved != output:
+        raise ValueError("任务输出目录不得重定向")
     return output
+
+
+def _validate_write_target(path: Path) -> None:
+    if path.parent.resolve() != path.parent or path.parent.is_symlink():
+        raise ValueError("任务输出目录不得重定向")
+    if path.is_symlink():
+        raise ValueError(f"输出文件不得为符号链接: {path.name}")
+
+
+@contextmanager
+def _atomic_output(path: Path):
+    path = path.absolute()
+    _validate_write_target(path)
+    fd, filename = tempfile.mkstemp(prefix=".export-", dir=path.parent)
+    temp_path = Path(filename)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as file:
+            yield file
+        _validate_write_target(path)
+        os.replace(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def write_csv(path: Path, headers: list[str], columns: list[list]) -> None:
     """按列写入 CSV，自动用空字符串补齐长度较短的列。"""
     row_count = max((len(column) for column in columns), default=0)
-    with path.open("w", encoding="utf-8", newline="") as file:
+    with _atomic_output(path) as file:
         writer = csv.writer(file)
         writer.writerow(headers)
         for index in range(row_count):
@@ -134,10 +162,8 @@ def export_result(result_rid: str, token: str, workspace: Path) -> dict:
         raise TypeError(f"不支持的仿真结果类型: {type(result).__name__}")
 
     manifest_path = output / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    with _atomic_output(manifest_path) as file:
+        file.write(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     return {
         "simulation_type": manifest["simulation_type"],
         "output_directory": str(output),

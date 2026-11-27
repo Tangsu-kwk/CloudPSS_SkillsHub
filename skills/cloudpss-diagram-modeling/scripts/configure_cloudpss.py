@@ -5,8 +5,24 @@ from pathlib import Path
 
 def configure_cloudpss(config_path=None):
     selected = config_path or os.environ.get('AUTOMODELING_CONFIG')
-    if selected is None:
-        return  # Environment-only use does not read an implicit repository file.
+    values = _read_settings(selected) if selected is not None else {}
+    env_token = next((token for name in ('CLOUDPSS_TOKEN', 'CLOUDPSS_LOGIN_TOKEN', 'SIMSTUDIO_TOKEN')
+                      if (token := os.environ.get(name, '').strip())), '')
+    env_url = os.environ.get('CLOUDPSS_API_URL', '').strip()
+    token = env_token or values.get('CLOUDPSS_TOKEN', '').strip()
+    url = env_url or values.get('CLOUDPSS_API_URL', '').strip()
+    token_source = ('environment' if env_token else 'YAML') if token else None
+    url_source = ('environment' if env_url else 'YAML') if url else None
+    if token_source and url_source and token_source != url_source:
+        raise ValueError('Refusing to pair CloudPSS token and api_url from different sources; '
+                         'configure both in the environment or both in YAML')
+    if token:
+        os.environ['CLOUDPSS_TOKEN'] = token
+    if url:
+        os.environ['CLOUDPSS_API_URL'] = url
+
+
+def _read_settings(selected):
     path = Path(selected).expanduser().resolve()
     if not path.is_file():
         raise ValueError('Specified CloudPSS configuration file does not exist')
@@ -25,12 +41,4 @@ def configure_cloudpss(config_path=None):
                 values[env] = value
     except Exception:
         raise ValueError('Cannot read CloudPSS YAML settings; check file structure') from None
-    for env, value in values.items():
-        if not os.environ.get(env, '').strip():
-            os.environ[env] = value
-    if 'CLOUDPSS_API_URL' in values and 'CLOUDPSS_TOKEN' not in values \
-            and (os.environ.get('CLOUDPSS_TOKEN', '').strip()
-                 or os.environ.get('CLOUDPSS_LOGIN_TOKEN', '').strip()):
-        # 同源配对: 环境令牌 + YAML 地址的组合可把受信令牌发给未受信主机
-        raise ValueError('Refusing to pair an environment token with a YAML-supplied api_url; '
-                         'configure token and api_url in the same source')
+    return values
