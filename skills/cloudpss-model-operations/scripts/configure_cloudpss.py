@@ -12,7 +12,12 @@ def configure_cloudpss(config_path=None):
         raise ValueError('Specified CloudPSS configuration file does not exist')
     import yaml
     try:
-        data = yaml.safe_load(path.read_text(encoding='utf-8-sig')) or {}
+        data = yaml.safe_load(path.read_text(encoding='utf-8-sig'))
+    except Exception:
+        raise ValueError('Cannot read CloudPSS YAML settings; check file structure') from None
+    if not isinstance(data, dict):
+        raise ValueError('配置根节点必须是对象')
+    try:
         settings = data.get('cloudpss_settings', {})
         if not isinstance(settings, dict):
             raise ValueError

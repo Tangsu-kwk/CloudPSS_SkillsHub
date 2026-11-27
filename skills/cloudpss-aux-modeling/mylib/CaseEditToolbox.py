@@ -26,9 +26,14 @@ def merge_fields(current, changes, *, pins=False):
     for key, value in changes.items():
         if pins and not isinstance(value, str):
             raise TypeError(f"Pin {key} must be a connection-name string")
-        if not pins and (value is None or isinstance(value, list)
-                         or isinstance(value, dict) and "source" not in value):
-            raise TypeError(f"Parameter {key} requires a scalar or source expression")
+        if not pins:
+            if isinstance(value, dict) and "source" in value:
+                expression = value["source"]
+                if not (type(expression) in (int, float)
+                        or isinstance(expression, str) and expression.strip()):
+                    raise TypeError(f"Parameter {key} source must be a scalar expression")
+            elif not isinstance(value, (str, int, float, bool)):
+                raise TypeError(f"Parameter {key} requires a scalar or source expression")
         old = current[key]
         if isinstance(old, dict) and "source" in old:
             result[key] = {**copy.deepcopy(old), **(copy.deepcopy(value) if isinstance(value, dict)

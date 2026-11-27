@@ -41,13 +41,13 @@ def read_submission(result, analysis_path, task_id, receipt_path):
             require_agreement(combined, record, key)
         for field, keys in (
             ("selection", ("job_index", "config_index")),
-            ("workspace", ("source_rid", "baseline_revision", "version", "sha256")),
+            ("workspace", ("source_rid", "baseline_revision", "version", "sha256", "binding")),
         ):
             incoming = record.get(field) or {}
-            existing = combined.setdefault(field, {})
+            existing = combined.get(field, {})
             for key in keys:
                 require_agreement(existing, incoming, key)
-            existing.update({key: value for key, value in incoming.items() if value is not None})
+            combined[field] = {**existing, **{key: value for key, value in incoming.items() if value is not None}}
         for key in ("revision_hash", "analysis_context_sha256"):
             if record.get(key) is not None:
                 combined[key] = record[key]

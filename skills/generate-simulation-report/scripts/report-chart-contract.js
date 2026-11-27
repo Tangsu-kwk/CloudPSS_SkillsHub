@@ -1,11 +1,23 @@
 const CHART_SPECS_ID = 'report-chart-specs';
 const RENDERER_ID = 'report-plotly-renderer';
 
+function commentRanges(content) {
+  return Array.from(content.matchAll(/<!--[\s\S]*?-->/g),
+    (match) => ({ start: match.index, end: match.index + match[0].length }));
+}
+
 function collectScriptBlocks(content) {
   const blocks = [];
+  const comments = commentRanges(content);
   const pattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
   let match;
   while ((match = pattern.exec(content)) !== null) {
+    const comment = comments.find(({ start, end }) => start <= match.index && match.index < end);
+    if (comment) {
+      // A fake opener can match a real closing tag after the comment.
+      pattern.lastIndex = comment.end;
+      continue;
+    }
     blocks.push({ attributes: match[1], content: match[2], start: match.index, end: pattern.lastIndex });
   }
   return blocks;
@@ -27,9 +39,15 @@ function removeBlocks(content, blocks) {
 
 function collectChartContainerIds(markup) {
   const ids = [];
+  const comments = commentRanges(markup);
   const pattern = /<([a-z][a-z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
   let match;
   while ((match = pattern.exec(markup)) !== null) {
+    const comment = comments.find(({ start, end }) => start <= match.index && match.index < end);
+    if (comment) {
+      pattern.lastIndex = comment.end;
+      continue;
+    }
     const attributes = new Map();
     const tokens = /([^\s=\/"'<>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s>]+))?/g;
     for (const [, name, value] of match[2].matchAll(tokens)) {

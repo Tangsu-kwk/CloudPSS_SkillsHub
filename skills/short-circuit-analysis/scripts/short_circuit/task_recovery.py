@@ -45,6 +45,8 @@ def read_task(task_id, *, action, output_dir=None, timeout=30):
     if str(UUID(task_id)) != task_id:
         raise ValueError("Provide the CloudPSS task UUID")
     if action == "resume":
+        if output_dir is None:
+            raise ValueError("resume requires --output-dir")
         receipt, context = _read_context(output_dir, task_id)
     runtime._configure_cloudpss_auth()
     deadline = time.monotonic() + timeout
