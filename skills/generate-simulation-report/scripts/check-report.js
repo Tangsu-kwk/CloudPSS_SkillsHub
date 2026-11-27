@@ -14,7 +14,7 @@ const { CHART_SPECS_ID, RENDERER_ID, attributeValue, collectScriptBlocks, remove
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 function removeLibraryBlock(content, blocks) {
-  const library = blocks.find((block) => /\bid\s*=\s*["']report-plotly-library["']/i.test(block.attributes));
+  const library = blocks.find((block) => /(?:^|\s)id\s*=\s*["']report-plotly-library["']/i.test(block.attributes));
   if (!library) return { visibleContent: content, libraryContent: null };
   return {
     visibleContent: content.slice(0, library.start) + content.slice(library.end),
@@ -53,7 +53,7 @@ function collectIssues(mode, content, plotly) {
   const externalScriptSources = blocks
     .map((block) => attributeValue(block.attributes, 'src'))
     .filter(Boolean);
-  const libraryBlocks = blocks.filter((block) => /\bid\s*=\s*["']report-plotly-library["']/i.test(block.attributes));
+  const libraryBlocks = blocks.filter((block) => /(?:^|\s)id\s*=\s*["']report-plotly-library["']/i.test(block.attributes));
   const rendererBlocks = blocks.filter((block) => attributeValue(block.attributes, 'id') === RENDERER_ID);
   if (rendererBlocks.length !== 1 || !/Plotly\.newPlot\s*\(/.test(rendererBlocks[0]?.content || '')) {
     issues.push('Report requires the fixed Plotly renderer.');
@@ -65,14 +65,14 @@ function collectIssues(mode, content, plotly) {
       issues.push('CDN mode must use exactly the fixed Plotly CDN URL.');
     }
     if (libraryContent !== '') issues.push('CDN mode must not embed Plotly library code.');
-    if (!blocks.some((block) => /\bid\s*=\s*["']report-plotly-fallback["']/i.test(block.attributes))) {
+    if (!blocks.some((block) => /(?:^|\s)id\s*=\s*["']report-plotly-fallback["']/i.test(block.attributes))) {
       issues.push('CDN mode is missing the Plotly load-failure notice.');
     }
   } else {
     if (externalScriptSources.length !== 0) issues.push('Offline mode must not contain external script sources.');
     if (libraryBlocks.length !== 1) issues.push('Offline mode requires exactly one embedded Plotly library block.');
     if (libraryContent !== plotly.trim()) issues.push('Embedded Plotly library does not exactly match the vendor file.');
-    if (blocks.some((block) => /\bid\s*=\s*["']report-plotly-fallback["']/i.test(block.attributes))) {
+    if (blocks.some((block) => /(?:^|\s)id\s*=\s*["']report-plotly-fallback["']/i.test(block.attributes))) {
       issues.push('Offline mode must not contain the CDN fallback block.');
     }
   }

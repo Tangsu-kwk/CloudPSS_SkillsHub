@@ -12,7 +12,8 @@ function collectScriptBlocks(content) {
 }
 
 function attributeValue(attributes, name) {
-  const match = attributes.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
+  // 锚定属性名起点：\bid 会误命中 data-id（连字符后构成字边界）
+  const match = attributes.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`, 'i'));
   return match ? match[1] : null;
 }
 
