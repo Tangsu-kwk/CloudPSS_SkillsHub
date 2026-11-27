@@ -16,13 +16,13 @@
 
 ## CloudPSS 结果导出
 
-只有结果 RID 或本地缺少用户要求展示的波形时，在当前工作区运行 `python <Skill目录>/scripts/export-simulation-result.py --result-rid <RID> --token <TOKEN>`。脚本固定输出到 `simulation-results/<RID>/`：
+只有结果 RID 或本地缺少用户要求展示的波形时，在当前工作区运行 `python <Skill目录>/scripts/export-simulation-result.py --result-rid <RID>`。脚本固定输出到 `simulation-results/<RID>/`：
 
 - `manifest.json` 是唯一入口，所有数据文件按其中的相对路径定位。
 - 潮流结果输出 `buses.csv` 和 `branches.csv`，作为结果表。
 - 电磁暂态结果按图组输出 `plot_000.csv` 等文件，作为原始时间序列。
-- Token 是必填输入。执行脚本前，Agent 在命令中显式引用 `CLOUDPSS_LOGIN_TOKEN` 和 `CLOUDPSS_TOKEN`，优先取 `CLOUDPSS_LOGIN_TOKEN`，为空时取 `CLOUDPSS_TOKEN`，并作为 `--token` 参数传入；脚本不读取环境变量。
-- 两个候选变量均为空时停止导出，并提示“当前运行环境缺少 CloudPSS Token，无法导出仿真结果。”；Token 不得写入索引、CSV、报告或日志。
+- 凭据只走环境变量：脚本自行读取 `CLOUDPSS_LOGIN_TOKEN`（优先）或 `CLOUDPSS_TOKEN`。**严禁把 Token 作为命令行参数传入**——进程参数对同机其他进程可见，且会被宿主命令日志留存。
+- 两个候选变量均为空时脚本停止导出，并提示“当前运行环境缺少 CloudPSS Token，无法导出仿真结果。”；Token 不得写入索引、CSV、报告、日志或命令行。
 - 不要扫描或引用 `manifest.json` 未列出的同目录旧文件。
 - 仅使用重导出数据计算的数值标为「按本次导出波形统计」，给出通道、单位、窗口和样点数。单位或工况没有证据时标明缺项。
 

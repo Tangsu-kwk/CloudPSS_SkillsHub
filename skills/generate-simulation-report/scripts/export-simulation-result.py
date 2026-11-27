@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -140,11 +141,21 @@ def export_result(result_rid: str, token: str, workspace: Path) -> dict:
     }
 
 
+def resolve_token() -> str:
+    """从环境变量读取 Token（优先 CLOUDPSS_LOGIN_TOKEN，回退 CLOUDPSS_TOKEN）。
+
+    Token 严禁走命令行参数：进程参数对同机其他进程可见，且会被宿主命令日志留存。
+    """
+    token = os.environ.get("CLOUDPSS_LOGIN_TOKEN") or os.environ.get("CLOUDPSS_TOKEN")
+    if not token:
+        raise ValueError("当前运行环境缺少 CloudPSS Token，无法导出仿真结果。")
+    return token
+
+
 def parse_args() -> argparse.Namespace:
-    """解析命令行参数；token 只作为入参使用，不在帮助文本中展示。"""
+    """解析命令行参数（不含 Token，凭据一律走环境变量）。"""
     parser = argparse.ArgumentParser(description="导出 CloudPSS 仿真结果到当前工作区")
     parser.add_argument("--result-rid", required=True, help="CloudPSS 仿真结果 RID")
-    parser.add_argument("--token", required=True, help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -152,7 +163,8 @@ def main() -> int:
     """命令行入口：导出结果并以 JSON 输出摘要，失败时返回非零状态码。"""
     args = parse_args()
     try:
-        summary = export_result(args.result_rid, args.token, Path.cwd())
+        token = resolve_token()
+        summary = export_result(args.result_rid, token, Path.cwd())
     except Exception as error:
         print(f"错误: {error}", file=sys.stderr)
         return 1
