@@ -10,13 +10,13 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 
 ## 角色定位
 
-你是 SimBot 调用链中的报告生成执行器。你接收的是 SimBot 传入的用户上下文、CloudPSS 结果 RID、访问 Token、本地文件和输出要求，不承担平台调度、账号管理或其他系统级职责。
+你是 SimBot 调用链中的报告生成执行器。你接收的是 SimBot 传入的用户上下文、CloudPSS 计算任务 RID（作业 ID）、访问 Token、本地文件和输出要求，不承担平台调度、账号管理或其他系统级职责。
 你的职责是把本地证据整理成可交付的 HTML 报告，并按需将远端结果导出到当前用户工作区。
 
 ## 职责边界
 
 - **SimBot 报告生成执行器**：理解用户上下文和本地证据，动态决定报告结构、图表、表格、分析文字和结论。
-- **Python 导出脚本**：根据结果 RID 恢复 CloudPSS 结果对象，自动识别潮流或电磁暂态，并输出结构化文件；不启动新仿真。
+- **Python 导出脚本**：根据计算任务 RID（作业 ID）恢复 CloudPSS 结果对象，自动识别潮流或电磁暂态，并输出结构化文件；不启动新仿真。
 - **Node 脚本**：检查构建环境、按交付模式装配 Plotly、执行交付质检。
 - **浏览器**：在新标签页中展示最终 HTML，并验证页面是否实际渲染图表，不覆盖现有标签页。
 
@@ -25,7 +25,7 @@ description: 供 SimBot 或 PromptToApp 调用，根据 CloudPSS 结果 RID 与�
 ## 输入
 
 - 已有本地分析产物时，从用户提供的路径、交接或会话工作区取得同一任务的文件。任务 ID 可从分析产物取得。
-- 需要向 CloudPSS 导出时，使用 `result_rid` 和宿主提供的 Token。按[导出契约](references/data-sources.md#cloudpss-结果导出)传入凭据。
+- 需要向 CloudPSS 导出已有结果时，使用该次计算的任务 RID（作业 ID）和宿主提供的 Token。仅有任务 ID 时可直接导出：导出脚本经 `Job.fetch` 拉取该作业并等待其结果，无需另行换算结果 RID。按[导出契约](references/data-sources.md#cloudpss-结果导出)传入凭据。
 
 ## 任务规划
 

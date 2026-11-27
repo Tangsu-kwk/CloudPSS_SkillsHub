@@ -16,7 +16,7 @@
 
 ## CloudPSS 结果导出
 
-只有结果 RID 或本地缺少用户要求展示的波形时，在当前工作区运行 `python <Skill目录>/scripts/export-simulation-result.py --result-rid <RID>`。脚本固定输出到 `simulation-results/<RID>/`：
+只有任务 RID 或本地缺少用户要求展示的波形时，在当前工作区运行 `python <Skill目录>/scripts/export-simulation-result.py --result-rid <任务RID>`。**本参数接收计算任务（作业）RID**：脚本经 `Job.fetch` 拉取该作业、等待其结果完成（超时 120 秒）后导出，因此只有任务 ID 时可直接使用，无需换算结果 RID。若无法取得任务 RID（例如仅有历史结果文件），停止导出并如实告知用户缺少可导出的任务，不得编造或使用无关任务的结果冒充。脚本固定输出到 `simulation-results/<任务RID>/`：
 
 - `manifest.json` 是唯一入口，所有数据文件按其中的相对路径定位。
 - 潮流结果输出 `buses.csv` 和 `branches.csv`，作为结果表。

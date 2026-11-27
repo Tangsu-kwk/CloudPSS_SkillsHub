@@ -155,7 +155,8 @@ def resolve_token() -> str:
 def parse_args() -> argparse.Namespace:
     """解析命令行参数（不含 Token，凭据一律走环境变量）。"""
     parser = argparse.ArgumentParser(description="导出 CloudPSS 仿真结果到当前工作区")
-    parser.add_argument("--result-rid", required=True, help="CloudPSS 仿真结果 RID")
+    parser.add_argument("--result-rid", required=True,
+                        help="CloudPSS 计算作业（任务）RID：脚本经 Job.fetch 拉取该作业并等待其结果")
     return parser.parse_args()
 
 
